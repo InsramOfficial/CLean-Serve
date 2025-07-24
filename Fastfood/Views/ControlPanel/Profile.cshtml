@@ -1,0 +1,78 @@
+﻿@model Fastfood.Models.Register
+@{
+   
+    var ToastMessage = TempData["PasswordUpdated"] as string;
+    var ToastType = TempData["ToastType"] as string;
+}
+
+@if (!string.IsNullOrEmpty(ToastMessage))
+{
+    <script>
+        document.addEventListener("DOMContentLoaded", function () {
+            showToast("@ToastMessage", "@ToastType");
+        });
+    </script>
+}
+<style>
+     .profile-img {
+         width: 100px;
+         height: 100px;
+         object-fit: cover;
+         border-radius: 50%;
+         border: 3px solid #0d6efd;
+         background-color: #f8f9fa;
+         padding: 5px;
+     }
+
+     .card {
+         background: #ffffff;
+         border-radius: 1rem;
+         box-shadow: 0 0 20px rgba(0, 0, 0, 0.05);
+     }
+
+     h3, .fw-semibold {
+         color: #343a40;
+     }
+
+     .text-muted {
+         font-size: 0.95rem;
+     }
+</style>
+<div class="container mt-5 mb-5">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <!-- Profile Card -->
+            <div class="card shadow-lg p-4 rounded-4 border-0">
+                <div class="text-center mb-4">
+                    <img src="https://cdn-icons-png.flaticon.com/512/3135/3135715.png" alt="Profile Image" class="profile-img mb-3">
+                    <h3 class="fw-bold">@Model.Name</h3>
+                    <p class="text-muted">Access Level: <strong>@Model.Access</strong></p>
+                </div>
+
+                <!-- Profile Details -->
+                <div class="row mb-3">
+                    <div class="col-sm-4 text-end fw-semibold">User ID:</div>
+                    <div class="col-sm-8">@Model.ID</div>
+                </div>
+                <div class="row mb-3">
+                    <div class="col-sm-4 text-end fw-semibold">User Code:</div>
+                    <div class="col-sm-8 text-break">@Model.UserCode.ToString().Substring(0, 8) + "••••••"</div>
+
+                </div>
+                <div class="row mb-4">
+                    <div class="col-sm-4 text-end fw-semibold">Password:</div>
+                    <div class="col-sm-8">••••••••••</div>
+                </div>
+
+                <!-- Action Button -->
+                <div class="text-center">
+                    <a asp-action="UpdateProfile" asp-controller="ControlPanel" class="btn btn-primary px-4 py-2 rounded-pill shadow-sm">
+                        🔒 Change Password
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ✅ Internal CSS Styling -->

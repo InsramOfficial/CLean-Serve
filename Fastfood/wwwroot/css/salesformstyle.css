@@ -1,0 +1,287 @@
+﻿body {
+    background: linear-gradient(to bottom, #87CEEB, #eff2f3);
+    margin: 0;
+    padding: 0;
+    font-family: Arial, sans-serif;
+}
+
+.container {
+    background: rgba(255, 255, 255, 0.9);
+    padding: 10px;
+    height: 560px;
+    border-radius: 10px;
+    box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.2);
+}
+
+
+
+/* Adjust the size and spacing of the cells */
+.tablecell {
+    text-shadow: 0 1px #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    outline: none;
+    cursor: pointer;
+    width: 23%; /* Adjust the width to fit four columns with some spacing */
+    height: 50px;
+    border: none;
+    padding: 5px; /* Adjust padding as needed */
+    border-radius: 10px;
+    transition: all 0.2s ease;
+    font-family: "Source Sans Pro", sans-serif;
+    font-size: 10px; /* Adjust the font size as needed */
+    font-weight: 100; /* Adjust the font weight as needed (300 for lighter) */
+    color: #606060;
+    text-shadow: 0 1px #fff;
+    margin: 2%; /* Create some space between the cells */
+}
+
+    .tablecell:hover {
+        box-shadow: 0 4px 3px 1px #FCFCFC, 0 6px 8px #D6D7D9, 0 -4px 4px #CECFD1, 0 -6px 4px #FEFEFE, inset 0 0 3px 3px #CECFD1;
+    }
+
+    .tablecell:active,
+    .tablecell:focus {
+        box-shadow: 0 4px 3px 1px #FCFCFC, 0 6px 8px #D6D7D9, 0 -4px 4px #CECFD1, 0 -6px 4px #FEFEFE, inset 0 0 5px 3px #999, inset 0 0 30px #aaa;
+    }
+
+* {
+    user-select: none;
+}
+
+/*Container css start */
+/* Style the container with a fixed width and hidden vertical scroll */
+.container1 {
+    width: 550px;
+    height: 380px;
+    overflow-y: hidden;
+    background: linear-gradient(to bottom, #87CEEB, #eff2f3);
+    padding: 10px;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.3);
+    margin: 0 auto;
+    border-radius: 20px; /* Adjust to control the amount of curvature */
+
+    border: 1px solid #a1c0d0;
+}
+
+/* Style the content inside the container */
+
+/* Hide the scrollbar in Webkit browsers (Chrome, Safari) */
+.content::-webkit-scrollbar {
+    width: 0.5em;
+    /* Adjust as needed */
+}
+
+.clickable-cell-container {
+    border-radius: 10px; /* Adjust the value to your desired curve */
+    overflow: hidden;
+}
+
+.content::-webkit-scrollbar-thumb {
+    background-color: transparent;
+    /* Hide the thumb */
+}
+
+.content::-webkit-scrollbar-track {
+    background-color: transparent;
+    /* Hide the track */
+}
+/* Container CSS end here */
+
+/* Style for button-like table cells */
+/* Style for button-like table cells */
+.tablecell.button-like {
+    display: inline-block;
+    margin: 5px; /* Adjust margin to add space between cells */
+    margin-bottom: 25px; /* Adjust margin to add space between cells */
+    padding: 10px 20px; /* Adjust padding to control button size */
+    border: none;
+    height: 80px;
+    width: 120px;
+    background: #78b0d6;
+    border-radius: 10px;
+    transition: all 0.2s ease;
+    font-family: "Source Sans Pro", sans-serif;
+    font-size: 12px; /* Adjust font size for the text */
+    font-weight: 400; /* Lighter font weight */
+    color: #ffffff;
+    text-shadow: 0 1px #fff;
+}
+
+    .tablecell.button-like:hover {
+        box-shadow: 0 4px 3px 1px #FCFCFC, 0 6px 8px #D6D7D9, 0 -4px 4px #CECFD1, 0 -6px 4px #FEFEFE, inset 0 0 3px 3px #CECFD1;
+    }
+
+    .tablecell.button-like:active,
+    .tablecell.button-like:focus {
+        box-shadow: 0 4px 3px 1px #FCFCFC, 0 6px 8px #D6D7D9, 0 -4px 4px #CECFD1, 0 -6px 4px #FEFEFE, inset 0 0 5px 3px #999, inset 0 0 30px #aaa;
+    }
+
+
+.table-container {
+    height: 200px; /* Adjust the height as needed */
+    overflow-x: hidden; /* Hide horizontal overflow */
+    overflow-y: auto; /* Enable vertical scrolling */
+    scrollbar-width: thin; /* Set the width of the scrollbar to be thin */
+    scrollbar-color: #aaa #ddd;
+}
+
+
+
+    /* Style the thumb (draggable part) */
+    .table-container::-webkit-scrollbar-thumb {
+        background: #aaa; /* Color of the thumb (the draggable part) */
+        border-radius: 5px; /* Round the edges of the thumb */
+    }
+
+    /* Style the track (the non-draggable part) */
+    .table-container::-webkit-scrollbar-track {
+        background: #ddd; /* Color of the track */
+    }
+
+
+
+/* ................... BreadCrump  ......................... */
+
+
+
+
+.breadcrumb {
+    display: inline-block;
+    box-shadow: 0 0 15px 1px rgba(0, 0, 0, 0.35);
+    overflow: hidden;
+    border-radius: 5px;
+    counter-reset: flag;
+}
+
+    .breadcrumb a {
+        text-decoration: none;
+        outline: none;
+        display: block;
+        float: left;
+        font-size: 12px;
+        line-height: 36px;
+        color: white;
+        padding: 0 10px 0 60px;
+        background: #333;
+        position: relative;
+    }
+
+        .breadcrumb a:first-child {
+            padding-left: 46px;
+            border-radius: 5px 0 0 5px;
+        }
+
+            .breadcrumb a:first-child:before {
+                left: 14px;
+            }
+
+        .breadcrumb a:last-child {
+            border-radius: 0 5px 5px 0;
+            padding-right: 20px;
+        }
+
+        .breadcrumb a.active, .breadcrumb a:hover {
+            background: #111;
+            background: linear-gradient(#333, #111);
+        }
+
+            .breadcrumb a.active:after, .breadcrumb a:hover:after {
+                background: #222;
+                background: linear-gradient(145deg, #333, #222);
+            }
+
+        .breadcrumb a:after {
+            content: '';
+            position: absolute;
+            top: 0;
+            right: -18px;
+            /*same dimension as the line-height of .breadcrumb a */
+            width: 36px;
+            height: 36px;
+            /*as you see the rotated square takes a larger height. which makes it tough to position it properly. So we are going to scale it down so that the diagonals become equal to the line-height of the link. We scale it to 70.7% because if square's:
+                length = 1; diagonal = (1^2 + 1^2)^0.5 = 1.414 (pythagoras theorem)
+                if diagonal required = 1; length = 1/1.414 = 0.707*/
+            transform: scale(0.707) rotate(45deg);
+            z-index: 1;
+            background: #555;
+            background: linear-gradient(135deg, #777, #333);
+            box-shadow: 2px -2px 0 2px rgba(0, 0, 0, 0.4), 3px -3px 0 2px rgba(255, 255, 255, 0.1);
+            /*
+                    5px - for rounded arrows and
+                    50px - to prevent hover glitches on the border created using shadows*/
+            border-radius: 0 5px 0 50px;
+        }
+
+        .breadcrumb a:last-child:after {
+            content: none;
+        }
+
+        .breadcrumb a:before {
+            content: counter(flag);
+            counter-increment: flag;
+            border-radius: 100%;
+            width: 20px;
+            height: 20px;
+            line-height: 20px;
+            margin: 8px 0;
+            position: absolute;
+            top: 0;
+            left: 30px;
+            background: #333;
+            background: linear-gradient(#333, #300);
+            font-weight: bold;
+        }
+
+
+.flat a, .flat a:after {
+    background: #333333;
+    color: #eee;
+    transition: all 0.7s;
+}
+
+    .flat a:before {
+        background: #111;
+        box-shadow: 0 0 0 1px #00c;
+    }
+
+    .flat a:hover, .flat a.active,
+    .flat a:hover:after, .flat a.active:after {
+        background: #3b5998;
+    }
+
+
+.container1 {
+    width: 570px;
+    height: 300px;
+    position: relative;
+    overflow: hidden;
+}
+
+
+    .container1::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        right: 0;
+        width: 10px;
+        height: 100%;
+        background: linear-gradient(to bottom, #ddd 0%, #ddd 2px, #fff 2px, #fff 100%);
+    }
+
+
+        .container1::before::-webkit-scrollbar-thumb {
+            background: #999;
+            border-radius: 5px;
+        }
+
+    .container1::-webkit-scrollbar {
+        width: 0;
+    }
+
+
+.content {
+    max-height: calc(100% - 10px);
+    overflow-y: auto;
+}

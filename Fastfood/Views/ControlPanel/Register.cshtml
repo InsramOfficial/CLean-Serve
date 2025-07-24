@@ -1,0 +1,129 @@
+﻿@{
+    Layout = null;
+}
+
+@{
+	var permission = TempData["RegisterError"] as string;
+}
+
+@if (!string.IsNullOrEmpty(permission))
+{
+	<div style="display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0;">
+		<div style="width: 300px; text-align: center; padding: 20px; border: 1px solid #dc3545; border-radius: 5px; background-color: #f8d7da; color: #721c24;">
+			<strong>You have no permission to Register any user.</strong>
+			<br>
+			<button style="margin-top: 10px; padding: 5px 10px; background-color: #dc3545; color: #fff; border: none; border-radius: 3px; cursor: pointer;">
+				<a asp-action="Login" asp-controller="ControlPanel" style="color:white;">OK</a>
+			</button>
+		</div>
+	</div>
+}
+else
+{
+	@using Fastfood.Models;
+	@model Register;
+
+
+
+	<!DOCTYPE html>
+	<html lang="en">
+	<head>
+		<title>Login V1</title>
+		<meta charset="UTF-8">
+		<meta name="viewport" content="width=device-width, initial-scale=1">
+		<!--===============================================================================================-->
+		<link rel="icon" type="image/png" href="~/login_signup/images/icons/favicon.ico" />
+		<!--===============================================================================================-->
+		<link rel="stylesheet" type="text/css" href="~/login_signup/vendor/bootstrap/css/bootstrap.min.css">
+		<!--===============================================================================================-->
+		<link rel="stylesheet" type="text/css" href="~/login_signup/fonts/font-awesome-4.7.0/css/font-awesome.min.css">
+		<!--===============================================================================================-->
+		<link rel="stylesheet" type="text/css" href="~/login_signup/vendor/animate/animate.css">
+		<!--===============================================================================================-->
+		<link rel="stylesheet" type="text/css" href="~/login_signup/vendor/css-hamburgers/hamburgers.min.css">
+		<!--===============================================================================================-->
+		<link rel="stylesheet" type="text/css" href="-~/login_signup/vendor/select2/select2.min.css">
+		<!--===============================================================================================-->
+		<link rel="stylesheet" type="text/css" href="~/login_signup/css/util.css">
+		<link rel="stylesheet" type="text/css" href="~/login_signup/css/main.css">
+		<!--===============================================================================================-->
+	</head>
+	<body>
+
+		<div class="limiter">
+			<div class="container-login100">
+				<div class="wrap-login100">
+					<div class="login100-pic js-tilt" data-tilt>
+						<img src="~/Login_Signup/images/Burger mural (1)-Photoroom.png" alt="IMG">
+					</div>
+
+					<form class="login100-form validate-form" asp-action="Register" asp-controller="ControlPanel" method="post">
+						<span class="login100-form-title mb-1">
+							Member Signup
+						</span>
+						<div class="wrap-input100 validate-input" data-validate="ID is Required">
+							<label asp-for="ID"><b>User ID</b></label>
+							<input class="input100" type="text" asp-for="ID" placeholder=" User ID">
+							<input asp-for="UserCode" type="hidden" />
+
+						</div>
+						<div class="wrap-input100 validate-input" data-validate="Password is required">
+							<label asp-for="Password"><b>Password</b></label>
+							<input class="input100" type="password" asp-for="Password" placeholder="Password">
+
+						</div>
+
+						<div class="wrap-input100 validate-input" data-validate="User_Name Is Required">
+							<label asp-for="Name"><b>User Name</b></label>
+
+							<input class="input100" type="text" asp-for="Name" placeholder="User Name">
+
+						</div>
+
+						<div class="wrap-input100 validate-input mb-4" data-validate="Password is required">
+							<label asp-for="Access"><b>Access</b></label>
+							<select class="input100" asp-for="Access" placeholder="Access">
+								<!-- Add options for your password choices here -->
+								<option value="Admin">Admin</option>
+								<option value="User">User</option>
+								<option value="Employee">Employee</option>
+								<!-- Add more options as needed -->
+							</select>
+
+						</div>
+
+						<div class="container-login100-form-btn ">
+							<button type="submit" class="login100-form-btn ">
+								Register
+							</button>
+						</div>
+
+					</form>
+				</div>
+			</div>
+		</div>
+
+
+
+
+		<!--===============================================================================================-->
+		<script src="~/login_signup/vendor/jquery/jquery-3.2.1.min.js"></script>
+		<!--===============================================================================================-->
+		<script src="~/login_signup/vendor/bootstrap/js/popper.js"></script>
+		<script src="~/login_signup/vendor/bootstrap/js/bootstrap.min.js"></script>
+		<!--===============================================================================================-->
+		<script src="~/login_signup/vendor/select2/select2.min.js"></script>
+		<!--===============================================================================================-->
+		<script src="~/login_signup/vendor/tilt/tilt.jquery.min.js"></script>
+		<script>
+			$('.js-tilt').tilt({
+				scale: 1.1
+			})
+		</script>
+		<!--===============================================================================================-->
+		<script src="js/main.js"></script>
+
+	</body>
+	</html>
+}
+

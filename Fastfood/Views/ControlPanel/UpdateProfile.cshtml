@@ -1,0 +1,46 @@
+﻿@model Fastfood.Models.Register
+ 
+@{
+    var Error = TempData["Error"] as string;
+    var ToastType = TempData["ToastType"] as string;
+     
+}
+@if (!string.IsNullOrEmpty(Error))
+{
+    <script>
+        document.addEventListener("DOMContentLoaded", function () {
+            showToast("@Error", "@ToastType");
+        });
+    </script>
+}
+<div class="container mt-5">
+    <div class="col-md-6 offset-md-3">
+        <div class="card shadow rounded-4 p-4">
+            <h4 class="text-center mb-4 text-primary">🔒 Change Your Password</h4>
+             
+            <form asp-action="UpdateProfile" asp-controller="ControlPanel" method="post">
+                <input type="hidden" asp-for="UserCode" />
+
+                <div class="mb-3">
+                    <label>Current Password</label>
+                    <input type="password" name="currentPassword" class="form-control" required />
+                </div>
+
+                <div class="mb-3">
+                    <label>New Password</label>
+                    <input type="password" name="newPassword" class="form-control" required />
+                </div>
+
+                <div class="mb-3">
+                    <label>Confirm New Password</label>
+                    <input type="password" name="confirmPassword" class="form-control" required />
+                </div>
+
+                <div class="text-center">
+                    <button type="submit" class="btn btn-primary">Update Password</button>
+                </div>
+            </form>
+
+        </div>
+    </div>
+</div>

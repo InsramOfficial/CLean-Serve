@@ -1,0 +1,243 @@
+﻿
+@{
+	var permission = TempData["Permission"] as string;
+}
+
+@if(!string.IsNullOrEmpty(permission))
+{
+	<div style="display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0;">
+		<div style="width: 300px; text-align: center; padding: 20px; border: 1px solid #dc3545; border-radius: 5px; background-color: #f8d7da; color: #721c24;">
+			<strong>@TempData["Permission"]</strong>
+			<br>
+			<button style="margin-top: 10px; padding: 5px 10px; background-color: #dc3545; color: #fff; border: none; border-radius: 3px; cursor: pointer;">
+				<a asp-action="UsersDetail" asp-controller="ControlPanel" style="color:white;">OK</a>
+			</button>
+		</div>
+	</div>
+}
+else
+{
+	@using Fastfood.ViewModel;
+	@model AssignPermissionVM;
+
+	<!doctype html>
+	<html lang="en">
+
+	<head>
+		<meta charset="utf-8">
+		<meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+		<meta http-equiv="X-UA-Compatible" content="IE=edge">
+		<title>User Permissions Detail</title>
+		<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/fontawesome.min.css" rel="stylesheet">
+		<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/solid.min.css" rel="stylesheet">
+		<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/brands.min.css" rel="stylesheet">
+		<link href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet">
+		<link href="https://cdn.datatables.net/1.10.22/css/jquery.dataTables.min.css" rel="stylesheet">
+		<link href="assets/css/master.css" rel="stylesheet">
+		<style>
+			/* Add custom styles here */
+			.table-container {
+				max-height: 340px;
+				/* Adjust the max-height based on your requirement */
+				overflow-y: auto;
+			}
+
+			#dataTables-example thead th {
+				position: sticky;
+				top: 0;
+				background-color: #fff;
+				/* Set the background color you desire */
+				z-index: 1;
+			}
+
+
+
+			/*------------------------------------------------------------------
+											[4. Content / #content]
+											*/
+			#body > .content {
+				position: relative;
+				padding: .5rem;
+			}
+
+			#body .content .page-title h3 {
+				margin: 1rem 0;
+			}
+
+
+			.page-title {
+				margin: 0 0 1rem 0; /* Adjust the margin as needed */
+				font-size: 1.5rem;
+				line-height: 1.5555556;
+			}
+
+			.box {
+				position: relative;
+				border-radius: 3px;
+				background: #ffffff;
+				border-top: 3px solid #d2d6de;
+				margin-bottom: 20px;
+				width: 100%;
+				box-shadow: 0 1px 1px rgba(0, 0, 0, 0.1);
+			}
+
+
+			.box-primary {
+				border-top-color: #22a1f9;
+			}
+
+			/*------------------------------------------------------------------
+											[7. Dashboard Cards / .card]
+											*/
+
+
+			/*------------------------------------------------------------------
+											[8. Miscellaneous ]
+											*/
+
+
+			.nav-pills {
+				padding: 15px;
+				background-color: #E0E0E0;
+				-webkit-box-shadow: 0 3px 10px 0 rgba(0, 0, 0, 0.05);
+				box-shadow: 0 3px 10px 0 rgba(0, 0, 0, 0.05);
+			}
+
+			.btn-rounded {
+				border-radius: 10em;
+				padding: 6px 8px;
+				font-size: small;
+				text-transform: none;
+				text-shadow: none !important;
+				background: #eaeaea;
+				border-color: transparent;
+				border: none;
+			}
+
+				.btn-rounded:hover {
+					border-color: transparent;
+					border: none;
+				}
+
+			.fixed-width-search-container {
+				width: 250px; /* Set the fixed width you desire */
+			}
+
+			input[type="checkbox"] {
+				border: 3px solid #d2d6de;
+				width: 20px; /* Adjust the width as needed */
+				height: 20px; /* Adjust the height as needed */
+			}
+
+				input[type="checkbox"]:checked {
+					border-top-color: #22a1f9;
+				}
+
+			.wrapper {
+				margin-top: -10px;
+			}
+		</style>
+	</head>
+
+	<body>
+		<form asp-action="AssignPermissions" asp-controller="ControlPanel" method="post">
+			<div class="wrapper">
+				<!-- sidebar navigation component -->
+				<!-- end of sidebar component -->
+				<div id="body" class="active">
+					<!-- navbar navigation component -->
+					<!-- end of navbar navigation -->
+					<div class="content">
+						<div class="container">
+							<div class="row" style="display: flex; align-items: center;">
+								<div style="margin-right: 10px;">
+									<div class="page-title">
+										<h3>User Permissions</h3>
+									</div>
+								</div>
+								<div style="margin: 0; padding: 0; border: none; background-color: transparent; box-shadow: none;">
+									<b><input asp-for="@Model.user.Name" readonly /></b>
+								</div>
+							</div>
+
+
+
+							<div class="box box-primary">
+								<div class="box-body">
+									<!-- Add the search input box here with Bootstrap classes -->
+									<div class="input-group mb-3 fixed-width-search-container">
+										<input type="text" class="form-control" id="searchInput" placeholder="Search for UserCode..." oninput="searchCategory()">
+									</div>
+
+									<!-- Add the scrollable table container -->
+									<div class="table-container">
+										<table class="table table-hover" id="dataTables-example">
+											<thead>
+												<tr>
+													<th>Permission Id</th>
+													<th>User Code</th>
+													<th>Method Id</th>
+													<th>Method Name</th>
+													<th>Can Read</th>
+												</tr>
+											</thead>
+											<tbody>
+												@for (int i = 0; i < Model.permissions.Count; i++)
+												{
+													<tr>
+														<td><input asp-for="@Model.permissions[i].PermissionId" type="text" readonly /></td>
+														<td><input asp-for="@Model.permissions[i].UserCode" type="text" readonly /></td>
+														<td><input asp-for="@Model.permissions[i].MethodId" type="text" readonly /></td>
+														<td><input asp-for="@Model.permissions[i].MethodName" type="text" readonly /></td>
+														<td>
+															<input asp-for="@Model.permissions[i].View" type="checkbox">
+														</td>
+
+													</tr>
+												}
+											</tbody>
+										</table>
+									</div>
+								</div>
+							</div>
+						</div>
+					</div>
+				</div>
+				<button type="submit" class="btn btn-success " style="float: inline-end;">Update</button>
+			</div>
+		</form>
+
+		<!-- Bootstrap scripts -->
+		<script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+		<script src="https://cdn.jsdelivr.net/npm/popperjs/core@2.11.6/dist/umd/popper.min.js"></script>
+		<script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+
+		<!-- DataTables script for table functionality -->
+		<script type="text/javascript" charset="utf8"
+				src="https://cdn.datatables.net/1.11.7/js/jquery.dataTables.js"></script>
+		<script>
+			// Initialize DataTable
+			$(document).ready(function () {
+				$('#dataTables-example').DataTable();
+			});
+
+			function searchCategory() {
+				// Get input value
+				var input = $('#searchInput').val().toLowerCase();
+
+				// Loop through each row in the table
+				$('#dataTables-example tbody tr').each(function () {
+					// Check if the input value is empty or matches any text in the first column (index 0)
+					var rowData = $(this).find('td:eq(0)').text().toLowerCase();
+					var isMatch = input === '' || rowData.indexOf(input) !== -1;
+
+					// Show or hide the row based on the match condition
+					$(this).toggle(isMatch);
+				});
+			}
+		</script>
+	</body>
+
+	</html>
+}
+

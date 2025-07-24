@@ -1,0 +1,139 @@
+﻿@{
+    Layout = null;
+}
+@using Fastfood.ViewModel;
+@model LoginViewModel;
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<title>Login</title>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<!--===============================================================================================-->
+	<link rel="icon" type="image/png" href="~/login_signup/images/icons/favicon.ico" />
+	<!--===============================================================================================-->
+	<link rel="stylesheet" type="text/css" href="~/login_signup/vendor/bootstrap/css/bootstrap.min.css">
+	<!--===============================================================================================-->
+	<link rel="stylesheet" type="text/css" href="fonts/font-awesome-4.7.0/css/font-awesome.min.css">
+	<!--===============================================================================================-->
+	<link rel="stylesheet" type="text/css" href="~/login_signup/vendor/animate/animate.css">
+	<!--===============================================================================================-->
+	<link rel="stylesheet" type="text/css" href="~/login_signup/vendor/css-hamburgers/hamburgers.min.css">
+	<!--===============================================================================================-->
+	<link rel="stylesheet" type="text/css" href="~/login_signup/vendor/select2/select2.min.css">
+	<!--===============================================================================================-->
+
+	<link href="~/login_signup/css/login.css" rel="stylesheet" />
+	<link href="~/login_signup/css/main.css" rel="stylesheet" />
+	<!--===============================================================================================-->
+</head>
+<body>
+	
+	<div class="limiter">
+		<div class="container-login100">
+			<div class="wrap-login100">
+				<div class="login100-pic js-tilt" data-tilt>
+					<img src="~/Login_Signup/images/Login.jpeg" alt="IMG">
+				</div>
+
+				<form class="login100-form validate-form" method="post" asp-action="Login" asp-controller="ControlPanel">
+					<span>
+						@if (TempData["alertmessage"] != null)
+						{
+							<div class="alert alert-success">
+								@TempData["alertmessage"]
+								<button type="button" class="close" data-dismiss="alert">
+									<span>&times;</span>
+								</button>
+							</div>
+						}
+					</span>
+					<span class="login100-form-title">
+						Member Login
+					</span>
+
+					<div class="wrap-input100 validate-input" data-validate="Required">
+						<label asp-for="ID"><b>User ID</b></label>
+						<input class="input100" type="text" asp-for="ID" placeholder="Enter User ID">
+						<span class="focus-input100"></span>
+
+					</div>
+
+					<div class="wrap-input100 validate-input" data-validate="Password is required">
+						<label asp-for="Password"><b>Password </b></label>
+						<input class="input100" type="password" asp-for="Password" placeholder="Enter Password">
+						<span class="focus-input100"></span>
+
+					</div>
+
+					<div class="container-login100-form-btn">
+						<button type="submit" class="login100-form-btn mb-3">
+							Login
+						</button>
+					</div>
+					<div class="text-center p-t-12 mb-3">
+						<span class="text-danger">
+							@TempData["InvalidCredentials"]
+						</span>
+						<span class="text-danger">
+							@TempData["EmptyCredentials"]
+						</span>
+					</div>
+					<div class="text-center p-t-12 mb-3">
+						<span class="txt1">
+							Forgot
+						</span>
+						<a class="txt2" href="#">
+							Username / Password?
+						</a>
+					</div>
+				</form>
+			</div>
+		</div>
+	</div>
+	<!--===============================================================================================-->
+
+	<script src="~/login_signup/vendor/jquery/jquery-3.2.1.min.js"></script>
+	<!--===============================================================================================-->
+	>
+	<script src="~/login_signup/vendor/bootstrap/js/popper.js"></script>
+	<script src="~/login_signup/vendor/bootstrap/js/popper.min.js"></script>
+	<script src="vendor/bootstrap/js/bootstrap.min.js"></script>
+	<script src="~/login_signup/vendor/bootstrap/js/bootstrap.js"></script>
+	<script src="~/login_signup/vendor/bootstrap/js/bootstrap.min.js"></script>
+	<!--===============================================================================================-->
+	<script src="vendor/select2/select2.min.js"></script>
+	<link href="~/login_signup/vendor/select2/select2.css" rel="stylesheet" />
+	<link href="~/login_signup/vendor/select2/select2.min.css" rel="stylesheet" />
+	<!--===============================================================================================-->
+	<script src="~/login_signup/vendor/tilt/tilt.jquery.min.js"></script>
+	<script src="~/login_signup/vendor/bootstrap/js/bootstrap.js"></script>
+	<script src="~/login_signup/vendor/bootstrap/js/bootstrap.min.js"></script>
+	<script>
+		$('.js-tilt').tilt({
+			scale: 1.1
+		})
+
+		window.setTimeout(function () {
+			$(".alert").fadeTo(500, 0).slideUp(500, function () {
+				$(this).remove();
+			});
+		}, 3000);
+	</script>
+	<!--===============================================================================================-->
+	<script src="js/main.js"></script>
+	<script>
+		let popup = document.getElementById("popup");
+
+		function openpopup() {
+			popup.classList.add("openpopup");
+
+		}
+		function closepopup() {
+			popup.classList.remove("openpopup");
+
+		}
+	</script>
+
+</body>
+</html>

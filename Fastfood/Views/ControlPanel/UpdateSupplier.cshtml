@@ -1,0 +1,158 @@
+﻿@{
+    var permission = TempData["Permission"] as string;
+}
+
+
+@if (!string.IsNullOrEmpty(permission))
+{
+    <div style="display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0;">
+        <div style="width: 400px; text-align: center; padding: 30px; border: 2px dashed #dc3545; border-radius: 10px; background-color: #fff0f1; color: #842029; box-shadow: 0 0 12px rgba(220, 53, 69, 0.2); font-family: 'Segoe UI', sans-serif;">
+            <div style="font-size: 24px; font-weight: bold; margin-bottom: 10px;">Access Denied</div>
+            <div style="font-size: 16px; margin-bottom: 20px;">
+                You do not have the necessary permissions to access this page.
+            </div>
+            <a asp-action="HomeIndex" asp-controller="Home"
+               style="display: inline-block; padding: 10px 25px; background-color: #dc3545; color: #fff; text-decoration: none; border-radius: 6px; font-weight: bold; transition: background-color 0.3s;">
+                Return to Home
+            </a>
+        </div>
+    </div>
+}
+else
+{
+    @using Fastfood.Models;
+    @model Suppliers;
+    <!doctype html>
+    <html lang="en">
+
+    <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <title>Supplier Profile Page</title>
+
+        <!-- Bootstrap 5 -->
+        <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/css/bootstrap.min.css" rel="stylesheet"
+              integrity="sha384-rbsA2VBKQhggwzxH7pPCaAqO46MgnOM80zW1RWuH61DGLwZJEdK2Kadq2F9CUG65" crossorigin="anonymous">
+
+        <!-- Font Awesome 6 -->
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+    </head>
+
+    <body>
+        <div class="container mt-4">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h2 class="text-center m-0"><strong>Update Supplier</strong></h2>
+                <a asp-action="Suppliers" asp-controller="ControlPanel" class="btn btn-outline-secondary">
+                    ← Back to Suppliers
+                </a>
+            </div>
+            <form asp-action="UpdateSupplier" asp-controller="ControlPanel" method="post">
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label asp-for="Name" class="form-label">Supplier Name</label>
+                        <input asp-for="Name" class="form-control" maxlength="500" />
+                        <input asp-for="SupplierId"hidden class="form-control" maxlength="500" />
+                        <input asp-for="SupplierCreationDate"hidden class="form-control" maxlength="500" />
+                        <span asp-validation-for="Name" class="text-danger"></span>
+
+                    </div>
+
+                    <div class="col-md-6 mb-3">
+                        <label asp-for="Address" class="form-label"></label>
+                        <input asp-for="Address" class="form-control" maxlength="500" />
+                        <span asp-validation-for="Address" class="text-danger"></span>
+                    </div>
+
+                    <div class="col-md-6 mb-3">
+                        <label asp-for="PhoneNo" class="form-label"></label>
+                        <input asp-for="PhoneNo" class="form-control" maxlength="50" />
+                        <span asp-validation-for="PhoneNo" class="text-danger"></span>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label asp-for="MobileNo" class="form-label"></label>
+                        <input asp-for="MobileNo" class="form-control" maxlength="50" />
+                        <span asp-validation-for="MobileNo" class="text-danger"></span>
+                    </div>
+
+                    <div class="col-md-6 mb-3">
+                        <label asp-for="NIC" class="form-label"></label>
+                        <input asp-for="NIC" class="form-control" maxlength="100" />
+                        <span asp-validation-for="NIC" class="text-danger"></span>
+                    </div>
+
+                    <div class="col-md-6 mb-3">
+                        <label asp-for="Email" class="form-label"></label>
+                        <input asp-for="Email" class="form-control" maxlength="100" />
+                        <span asp-validation-for="Email" class="text-danger"></span>
+                    </div>
+
+                    <div class="col-md-6 mb-3">
+                        <label asp-for="Citycode" class="form-label"></label>
+                        <input asp-for="Citycode" class="form-control" maxlength="50" />
+                        <span asp-validation-for="Citycode" class="text-danger"></span>
+                    </div>
+
+                    <div class="col-md-6 mb-3">
+                        <label asp-for="Countrycode" class="form-label"></label>
+                        <input asp-for="Countrycode" class="form-control" maxlength="50" />
+                        <span asp-validation-for="Countrycode" class="text-danger"></span>
+                    </div>
+
+                    <div class="col-md-6 mb-3">
+                        <label asp-for="Operation_Type" class="form-label"></label>
+                        <select asp-for="Operation_Type" class="form-control">
+                            <option value="">-- Select Operation Type --</option>
+                            <option value="Insert">Insert</option>
+                            <option value="Update">Update</option>
+                            <option value="Delete">Delete</option>
+                            <option value="Deactivate">Deactivate</option>
+                            <option value="Reactivate">Reactivate</option>
+                        </select>
+                        <span asp-validation-for="Operation_Type" class="text-danger"></span>
+                    </div>
+
+                    <!-- Account ID (readonly & auto-generated) -->
+                    <div class="col-md-6 mb-3">
+                        <label asp-for="Accountid" class="form-label"></label>
+                        <input asp-for="Accountid" class="form-control" readonly />
+                        <span asp-validation-for="Accountid" class="text-danger"></span>
+                    </div>
+
+                    <!-- DbStatus (Boolean Toggle) -->
+                    <div class="col-md-6 mb-3">
+                        <label asp-for="DbStatus" class="form-label">Active Status</label><br />
+                        <input type="hidden" name="DbStatus" value="false" />
+                        <input type="checkbox" asp-for="DbStatus" class="form-check-input" />
+                         
+                        <span asp-validation-for="DbStatus" class="text-danger"></span>
+                    </div>
+                     
+                    <!-- Modifier -->
+                    <div class="col-md-6 mb-3">
+                        <label asp-for="Modifier" class="form-label"></label>
+                        <input asp-for="Modifier" class="form-control" maxlength="50" />
+                        <span asp-validation-for="Modifier" class="text-danger"></span>
+                    </div>
+
+                    <!-- Last Modified (Auto-filled date or hidden if filled in controller) -->
+                    
+                </div>
+
+                <div class="mt-4 text-center">
+                    <button type="submit" class="btn btn-primary">Save Supplier</button> 
+                </div>
+            </form>
+        </div>
+
+        <!-- JS Dependencies -->
+        <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/js/bootstrap.bundle.min.js"
+                integrity="sha384-kenU1KFdBIe4zVF0s0G1M5b4hcpxyD9F7jL+jjXkk+Q2h455rYXK/7HAuoJl+0I4"
+                crossorigin="anonymous"></script>
+        <partial name="_ValidationScriptsPartial" />
+
+    </body>
+
+    </html>
+
+}
+
