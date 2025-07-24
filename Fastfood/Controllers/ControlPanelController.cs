@@ -22,14 +22,17 @@ namespace Fastfood.Controllers
 
 		}
 
-		public IActionResult ErrorMessage()
-		{
-			return View();
-		}
+        #region ErrorMessage
+        public IActionResult ErrorMessage()
+        {
+            return View();
+        }
 
-		#region Category
-		// GET: ControlPanelController
-		[HttpGet]
+        #endregion
+
+        #region Category
+        // GET: ControlPanelController
+        [HttpGet]
 		public IActionResult CategoryDetails()
 		{
 			TempData["UserName"] = HttpContext.Session.GetString("UserName");
@@ -771,7 +774,7 @@ namespace Fastfood.Controllers
 					HttpContext.Session.SetString("flag", "true");
 					TempData["UserName"] = user.Name;
 					TempData["Access"] = user.Access;
-					TempData["loginmessage"] = "Login Successfully";
+					TempData["loginmessage"] = "Welcome To the System";
 					return RedirectToAction("HomeIndex", "Home");
 
 				}
