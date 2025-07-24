@@ -11,9 +11,11 @@
   <meta content="" name="description">
   <meta content="" name="keywords">
 
-  <!-- Favicons -->
-  <link href="~/assets/img/favicon.png" rel="icon">
-    <link href="~/assets/img/apple-touch-icon.png" rel="apple-touch-icon">
+    <link rel="apple-touch-icon" sizes="180x180" href="~/assets/img/apple-touch-icon.png">
+    
+    <link rel="icon" type="image/png" sizes="32x32" href="~/assets/img//favicon-32x32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="~/assets/img//favicon-16x16.png">
+    <link rel="manifest" href="~/assets/img//site.webmanifest">
 
   <!-- Google Fonts -->
   <link href="https://fonts.gstatic.com" rel="preconnect">
@@ -49,7 +51,7 @@
             <i class="bi bi-list toggle-sidebar-btn" style="margin-right:25px;"></i>
 
             <!-- Logo -->
-            <a href="/Home/Index" class="logo d-flex align-items-center ml-5">
+            <a asp-action="HomeIndex" asp-controller="HomeController" class="logo d-flex align-items-center ml-5">
                 <img src="~/assets/img/logo.png" alt="">
                 <span class="d-none d-lg-block">Clean Serve</span>
             </a>
