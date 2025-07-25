@@ -11,6 +11,8 @@ namespace Fastfood.Models
         [Required(ErrorMessage = "Category name is required.")]
         public string? CategoryName { get; set; }
         public int? Root {  get; set; }
-        
+        public string? Picture { get; set; }
+        [NotMapped]
+        public IFormFile image { get; set; }
     }
 }

@@ -1,4 +1,5 @@
 ﻿using Fastfood.Models;
+using System.ComponentModel.DataAnnotations.Schema;
 
 namespace Fastfood.ViewModel
 {
@@ -12,6 +13,9 @@ namespace Fastfood.ViewModel
         public int? Discount { get; set; }
         public string? Remarks { get; set; }
         //public double NetTotal { get; set; }
+        public string? Picture { get; set; }
+        [NotMapped]
+        public IFormFile ItemImage { get; set; }
         public List<Category>? category { get; set; }
     }
 }

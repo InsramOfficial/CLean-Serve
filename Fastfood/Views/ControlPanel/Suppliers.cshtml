@@ -12,7 +12,7 @@
 			<div style="font-size: 16px; margin-bottom: 20px;">
 				You do not have the necessary permissions to access this page.
 			</div>
-			<a asp-action="HomeIndex" asp-controller="Home"
+			<a asp-action="Index" asp-controller="ControlPanel"
 			   style="display: inline-block; padding: 10px 25px; background-color: #dc3545; color: #fff; text-decoration: none; border-radius: 6px; font-weight: bold; transition: background-color 0.3s;">
 				Return to Home
 			</a>
@@ -191,7 +191,18 @@ else
 												<td>@item.Address</td>
 												<td>@item.Accountid</td>
 												<td>@item.Operation_Type</td>
-												<td>@item.DbStatus</td>
+													<td>
+														@if (item.DbStatus)
+														{
+															<span class="badge badge-success px-3 py-2 rounded-pill">Active</span>
+														}
+														else
+														{
+															<span class="badge badge-danger px-3 py-2 rounded-pill">Inactive</span>
+														}
+
+													</td>
+
 												<td>
 														<a asp-action="UpdateSupplier" asp-controller="ControlPanel" asp-route-id="@item.SupplierId" class="btn btn-outline-info btn-rounded">
 													<i class="fas fa-pen"></i>

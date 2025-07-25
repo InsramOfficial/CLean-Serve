@@ -12,7 +12,7 @@
             <div style="font-size: 16px; margin-bottom: 20px;">
                 You do not have the necessary permissions to access this page.
             </div>
-            <a asp-action="HomeIndex" asp-controller="Home"
+            <a asp-action="Index" asp-controller="ControlPanel"
                style="display: inline-block; padding: 10px 25px; background-color: #dc3545; color: #fff; text-decoration: none; border-radius: 6px; font-weight: bold; transition: background-color 0.3s;">
                 Return to Home
             </a>
@@ -81,23 +81,47 @@ else
         <div class="container">
             <div class="row">
                 <div class="col-md-12"></div>
+
                 <div class="col-md-12 background">
-                    <form method="post" asp-action="UpdateCategory" asp-controller="ControlPanel">
+                    <form method="post" asp-action="UpdateCategory" asp-controller="ControlPanel" enctype="multipart/form-data">
                         <h2 class="text-center">Update Category</h2>
                         <hr>
+
                         <div class="form-group">
-                            <label asp-for="CategoryName">First Name:</label>
-                            <input asp-for="CategoryName" type="text" class="form-control" placeholder="Enter Category Name">
+                            <label asp-for="CategoryName">Category Name:</label>
+                            <input asp-for="CategoryName" type="text" class="form-control" placeholder="Enter Category Name" />
                             <input asp-for="CategoryId" type="hidden" />
                         </div>
+
+                        <div class="form-group mt-3">
+                            <label>Current Image:</label><br />
+                            @if (!string.IsNullOrEmpty(Model.Picture))
+                            {
+                                <img src="~/images/@Model.Picture" alt="Current Image" width="100" height="100" style="border-radius: 50%; object-fit: cover;" />
+                            }
+                            else
+                            {
+                                <p><em>No image uploaded</em></p>
+                            }
+                        </div>
+
+                      
+                        <div class="form-group mt-3">
+                            <label asp-for="image">Upload New Image:</label>
+                            <input asp-for="image" type="file" class="form-control" />
+                            <span asp-validation-for="image" class="text-danger"></span>
+                        </div>
+
                         <hr>
-                        <button class="btn btn-secondary"><a style="color:white;" asp-action="CategoryDetails" asp-controller="ControlPanel">Back</a></button>
                         <button type="submit" class="btn btn-success mr-2">Update</button>
+                        <a asp-action="CategoryDetails" asp-controller="ControlPanel" class="btn btn-secondary" style="color:white;">Back</a>
                     </form>
                 </div>
+
                 <div class="col-md-12"></div>
             </div>
         </div>
+
     </body>
     </html>
 }
