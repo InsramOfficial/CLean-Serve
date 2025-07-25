@@ -10,7 +10,7 @@
             <div style="font-size: 16px; margin-bottom: 20px;">
                 You do not have the necessary permissions to access this page.
             </div>
-            <a asp-action="HomeIndex" asp-controller="Home"
+            <a asp-action="Index" asp-controller="ControlPanel"
                style="display: inline-block; padding: 10px 25px; background-color: #dc3545; color: #fff; text-decoration: none; border-radius: 6px; font-weight: bold; transition: background-color 0.3s;">
                 Return to Home
             </a>
@@ -73,7 +73,7 @@ else
             <div class="row">
                 <div class="col-md-12"></div>
                 <div class="col-md-12 background">
-                    <form method="post" asp-action="CreateItem" asp-controller="ControlPanel">
+                    <form method="post" asp-action="CreateItem" asp-controller="ControlPanel" enctype="multipart/form-data">
                         <h2 class="text-center">Add Item</h2>
                         <hr>
                         <table>
@@ -109,6 +109,15 @@ else
                                             }
                                         </select>
                                     </div>
+                                </td>
+                            </tr> 
+                            <tr>
+                                <td>
+                                    <div class="form-group">
+                                        <label asp-for="ItemImage">Item Image:</label>
+                                        <input asp-for="ItemImage" type="file" class="form-control-file" />
+                                    </div>
+                                      
                                 </td>
                             </tr>
                             <tr>

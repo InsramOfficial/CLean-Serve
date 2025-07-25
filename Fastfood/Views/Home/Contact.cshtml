@@ -1,0 +1,117 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="description" content="Clean Serve Restaurant Management System">
+    <meta name="keywords" content="Clean Serve, Restaurant, Contact, POS, Hygiene, Reservation">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>Contact Us | Clean Serve</title>
+
+    <!-- Font Awesome Icons -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet">
+    <link href="~/homecontroller/css/contact-page.css" rel="stylesheet" />
+</head>
+
+<body>
+    <section class="py-5 bg-info"  >
+        <div class="container">
+            <div class="row justify-content-center text-center text-white">
+                <div class="col-lg-8">
+                    <h2 class="fw-bold display-5">Get In Touch</h2>
+                    <nav aria-label="breadcrumb">
+                        <ol class="breadcrumb justify-content-center bg-transparent p-0 mt-3">
+                            <li class="breadcrumb-item">
+                                <a asp-action="HomeIndex" asp-controller="Home" class="text-white text-decoration-none">Home</a>
+                            </li>
+                            <li class="breadcrumb-item active text-white" aria-current="page">Contact Us</li>
+                        </ol>
+                    </nav>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Contact Information Section -->
+    <section class="contact spad">
+        <div class="container">
+            <div class="row">
+                <div class="col-lg-3 col-md-3 col-sm-6 text-center">
+                    <div class="contact__widget">
+                        <i class="fa fa-phone fa-2x mb-3 text-primary"></i>
+                        <h4>Support</h4>
+                        <p>+92-3401159116</p>
+                    </div>
+                </div>
+                <div class="col-lg-3 col-md-3 col-sm-6 text-center">
+                    <div class="contact__widget">
+                        <i class="fa fa-map-marker-alt fa-2x mb-3 text-primary"></i>
+                        <h4>Head Office</h4>
+                        <p>University of Kotli, Azad Jammu & Kashmir</p>
+                    </div>
+                </div>
+                <div class="col-lg-3 col-md-3 col-sm-6 text-center">
+                    <div class="contact__widget">
+                        <i class="fa fa-clock fa-2x mb-3 text-primary"></i>
+                        <h4>Working Hours</h4>
+                        <p>Mon - Sun: 10 AM to 11 PM</p>
+                    </div>
+                </div>
+                <div class="col-lg-3 col-md-3 col-sm-6 text-center">
+                    <div class="contact__widget">
+                        <i class="fa fa-envelope fa-2x mb-3 text-primary"></i>
+                        <h4>Email</h4>
+                        <p>support@cleanserve.com</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Google Map -->
+    <div class="map">
+        <iframe src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d2422.084821687591!2d73.89897027408813!3d33.48423884751176!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x14e3c3cb1fc05bed%3A0x92d313a2a8bb2347!2sUniversity%20of%20Kotli%2C%20Azad%20Jammu%20%26%20Kashmir!5e1!3m2!1sen!2s!4v1753437285858!5m2!1sen!2s" width="600" height="450" style="border:0;" allowfullscreen="" loading="lazy" referrerpolicy="no-referrer-when-downgrade" height="500" style="border:0;" allowfullscreen="" loading="lazy"></iframe>
+       
+        <div class="map-inside">
+            <i class="fa fa-map-pin"></i>
+            <div class="inside-widget">
+                <h4>Clean Serve - Main Office</h4>
+                <ul>
+                    <li>Phone: +92-3401159116</li>
+                    <li>Address: University of Kotli,Azad Jammu & Kashmir</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <!-- Contact Form -->
+    <div class="contact-form spad">
+        <div class="container">
+            <div class="row">
+                <div class="col-lg-12">
+                    <div class="contact__form__title">
+                        <h2>Send Us a Message</h2>
+                        <p>Have a question about table bookings, hygiene monitoring, or anything else? We'd love to hear from you!</p>
+                    </div>
+                </div>
+            </div>
+            <form asp-action="SendMessage" asp-controller="Home" method="post">
+                <div class="row">
+                    <div class="col-lg-6 col-md-6">
+                        <input type="text" name="name" placeholder="Your Name" required>
+                    </div>
+                    <div class="col-lg-6 col-md-6">
+                        <input type="email" name="email" placeholder="Your Email" required>
+                    </div>
+                    <div class="col-lg-12 text-center">
+                        <textarea name="message" placeholder="Your Message" required></textarea>
+                        <button type="submit" class="site-btn">SEND MESSAGE</button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+</body>
+
+</html>

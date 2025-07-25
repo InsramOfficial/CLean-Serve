@@ -1,0 +1,20 @@
+﻿@{
+	var userName = TempData["UserName"] as string;
+	var loginMessage = TempData["loginmessage"] as string;
+}
+
+@if (!string.IsNullOrEmpty(loginMessage))
+{
+	<script>
+		document.addEventListener("DOMContentLoaded", function () {
+			showToast("@(loginMessage + " " + userName)", "success");
+		});
+	</script>
+}
+
+
+<h1 style="text-align:center">Welcome to</h1>
+<br>
+<h1 style="text-align:center">Clean Serve Restrurent Managment System</h1>
+
+

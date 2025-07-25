@@ -45,4 +45,8 @@
     <PackageReference Include="System.Security.Permissions" Version="6.0.0" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Folder Include="wwwroot\Images\" />
+  </ItemGroup>
+
 </Project>

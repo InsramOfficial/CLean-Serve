@@ -11,7 +11,7 @@
             <div style="font-size: 16px; margin-bottom: 20px;">
                 You do not have the necessary permissions to access this page.
             </div>
-            <a asp-action="HomeIndex" asp-controller="Home"
+            <a asp-action="Index" asp-controller="ControlPanel"
                style="display: inline-block; padding: 10px 25px; background-color: #dc3545; color: #fff; text-decoration: none; border-radius: 6px; font-weight: bold; transition: background-color 0.3s;">
                 Return to Home
             </a>
@@ -120,10 +120,8 @@ else
 
                     <!-- DbStatus (Boolean Toggle) -->
                     <div class="col-md-6 mb-3">
-                        <label asp-for="DbStatus" class="form-label">Active Status</label><br />
-                        <input type="hidden" name="DbStatus" value="false" />
+                        <label asp-for="DbStatus" class="form-label">Active Status</label><br /> 
                         <input type="checkbox" asp-for="DbStatus" class="form-check-input" />
-                         
                         <span asp-validation-for="DbStatus" class="text-danger"></span>
                     </div>
                      

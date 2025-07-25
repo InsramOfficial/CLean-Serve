@@ -2,26 +2,45 @@
 using Fastfood.Data;
 using Fastfood.Models;
 using Fastfood.ViewModel;
-using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
-using System.Security.Claims;
 using Microsoft.AspNetCore.Mvc.RazorPages;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Hosting;
+using System.Security.Claims;
 using System.Security.Cryptography.X509Certificates;
 
 namespace Fastfood.Controllers
 {
 	public class ControlPanelController : Controller
 	{
-		private readonly DataDbContext db;
-		public ControlPanelController(DataDbContext _db)
-		{
-			db = _db;
+        private readonly DataDbContext db;
+        private IWebHostEnvironment env;
+        public ControlPanelController(DataDbContext _db, IWebHostEnvironment _env)
+        {
+            db = _db;
+            env = _env;
+        }
+        
+        #region Index
+        public IActionResult Index()
+        {
+            TempData["UserName"] = HttpContext.Session.GetString("UserName");
+            TempData["Access"] = HttpContext.Session.GetString("Access");
 
-		}
+            if (HttpContext.Session.GetString("flag") == "true")
+            {
+                return View();
+            }
+            else
+            {
+                return RedirectToAction("Login");
+            }
 
+        }
+        #endregion
         #region ErrorMessage
         public IActionResult ErrorMessage()
         {
@@ -108,10 +127,27 @@ namespace Fastfood.Controllers
                 {
                     try
                     {
+                        // Handle image upload
+                        string uniqueFileName = null;
+                        if (newcat.image != null)
+                        {
+                            string uploadsFolder = Path.Combine(env.WebRootPath, "Images");
+                              
+                            string fileExtension = Path.GetExtension(newcat.image.FileName);
+                            uniqueFileName = Guid.NewGuid().ToString() + fileExtension;
+                            string filePath = Path.Combine(uploadsFolder, uniqueFileName);
+
+                            using (var fileStream = new FileStream(filePath, FileMode.Create))
+                            {
+                                newcat.image.CopyTo(fileStream);
+                            }
+                        }
+
                         Category category = new()
                         {
                             CategoryName = newcat.CategoryName,
-                            Root = 0
+                            Root = 0,
+                            Picture = uniqueFileName // Save file name in DB
                         };
 
                         db.categories.Add(category);
@@ -123,14 +159,12 @@ namespace Fastfood.Controllers
                     }
                     catch
                     {
-                        
                         return View(newcat);
                     }
                 }
                 else
                 {
-                    // Validation failed
-                    return View(newcat);
+                    return View(newcat); // Validation failed
                 }
             }
             else
@@ -173,76 +207,139 @@ namespace Fastfood.Controllers
 
 		}
 
-		// POST: ControlPanelController/Edit/5
-		[HttpPost]
-		[ValidateAntiForgeryToken]
-		public IActionResult UpdateCategory(Category category)
-		{
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public IActionResult UpdateCategory(Category updatedCat)
+        {
+            TempData["UserName"] = HttpContext.Session.GetString("UserName");
             TempData["Access"] = HttpContext.Session.GetString("Access");
-			TempData["UserName"] = HttpContext.Session.GetString("UserName");
+
             if (HttpContext.Session.GetString("flag") == "true")
-			{
-				try
-				{
-					Category cat = new();
-					cat.CategoryId = category.CategoryId;
-					cat.CategoryName = category.CategoryName;
-					cat.Root = 0;
-					db.categories.Update(cat);
-					db.SaveChanges();
-                    TempData["ToastType"] = "success";
-                    TempData["ToastMessage"] = $"Category {category.CategoryName} updated successfully";
+            {
+                if (ModelState.IsValid)
+                {
+                    try
+                    {
+                        var category = db.categories.Find(updatedCat.CategoryId);
+                        if (category != null)
+                        {
+                            category.CategoryName = updatedCat.CategoryName;
+                            category.Root = updatedCat.Root;
 
-                    return RedirectToAction(nameof(CategoryDetails));
-				}
-				catch
-				{
-					return View();
-				}
-			}
-			else
-			{
-				return RedirectToAction(nameof(Login));
-			}
+                            if (updatedCat.image != null && updatedCat.image.Length > 0)
+                            {
+                                // Delete old image if exists and not shared with other records
+                                if (!string.IsNullOrEmpty(category.Picture))
+                                {
+                                    var imageUsageCount = db.categories.Count(c => c.Picture == category.Picture);
 
-		}
-		public IActionResult DeleteCategory(int id)
-		{
+                                    // If no other record uses this image, delete it
+                                    if (imageUsageCount == 1)
+                                    {
+                                        var oldPath = Path.Combine(env.WebRootPath, "images", category.Picture);
+                                        if (System.IO.File.Exists(oldPath))
+                                        {
+                                            System.IO.File.Delete(oldPath);
+                                        }
+                                    }
+                                }
+
+                                // Save new image
+                                var fileName = Guid.NewGuid().ToString() + Path.GetExtension(updatedCat.image.FileName);
+                                var filePath = Path.Combine(env.WebRootPath, "images", fileName);
+
+                                using (var stream = new FileStream(filePath, FileMode.Create))
+                                {
+                                    updatedCat.image.CopyTo(stream);
+                                }
+
+                                category.Picture = fileName;
+                            }
+
+
+                            db.categories.Update(category);
+                            db.SaveChanges();
+
+                            TempData["ToastType"] = "success";
+                            TempData["ToastMessage"] = $"Category {category.CategoryName} updated successfully.";
+                            return RedirectToAction(nameof(CategoryDetails));
+                        }
+
+                        return NotFound();
+                    }
+                    catch
+                    {
+                        return View(updatedCat);
+                    }
+                }
+                else
+                {
+                    return View(updatedCat);
+                }
+            }
+            else
+            {
+                return RedirectToAction(nameof(Login));
+            }
+        }
+
+       
+
+        public IActionResult DeleteCategory(int id)
+        {
             TempData["Access"] = HttpContext.Session.GetString("Access");
-			TempData["UserName"] = HttpContext.Session.GetString("UserName");
+            TempData["UserName"] = HttpContext.Session.GetString("UserName");
+
             if (HttpContext.Session.GetString("flag") == "true")
-			{
-				var methodName = "DeleteCategory";
-				var usercode = HttpContext.Session.GetString("UserCode");
+            {
+                var methodName = "DeleteCategory";
+                var usercode = HttpContext.Session.GetString("UserCode");
 
-				bool permission = db.userPermissions.Where(u => u.UserCode.ToString() == usercode && u.MethodName == methodName).Select(u => u.View).FirstOrDefault();
-				if (permission)
-				{
-					var RemoveCategory = db.categories.Find(id);
-					db.categories.Remove(RemoveCategory);
-					db.SaveChanges();
-                    TempData["ToastType"] = "error";
-                    TempData["ToastMessage"] = $"Category {RemoveCategory.CategoryName} Deleted successfully";
-                    return RedirectToAction(nameof(CategoryDetails));
-				}
-				else
-				{
-					TempData["Permission"] = "You do not have permission to access this page";
-					return View();
-				}
-			}
-			else
-			{
-				return RedirectToAction(nameof(Login));
-			}
+                bool permission = db.userPermissions.Where(u => u.UserCode.ToString() == usercode && u.MethodName == methodName).Select(u => u.View).FirstOrDefault();
 
+                if (permission)
+                {
+                    var RemoveCategory = db.categories.Find(id);
 
-		}
-		#endregion
+                    if (RemoveCategory != null)
+                    {
+                        // Delete the image file from wwwroot/images
+                        if (!string.IsNullOrEmpty(RemoveCategory.Picture))
+                        {
+                            var imagePath = Path.Combine(env.WebRootPath, "images", RemoveCategory.Picture);
+                            if (System.IO.File.Exists(imagePath))
+                            {
+                                System.IO.File.Delete(imagePath);
+                            }
+                        }
 
-		#region Items
+                        db.categories.Remove(RemoveCategory);
+                        db.SaveChanges();
 
-		public IActionResult ItemsDetail()
+                        TempData["ToastType"] = "error";
+                        TempData["ToastMessage"] = $"Category {RemoveCategory.CategoryName} deleted successfully.";
+                        return RedirectToAction(nameof(CategoryDetails));
+                    }
+
+                    return NotFound();
+                }
+                else
+                {
+                    TempData["Permission"] = "You do not have permission to access this page";
+                    return View();
+                }
+            }
+            else
+            {
+                return RedirectToAction(nameof(Login));
+            }
+        }
+
+        #endregion
+
+        #region Items
+
+        public IActionResult ItemsDetail()
 		{
             TempData["Access"] = HttpContext.Session.GetString("Access");
 			TempData["UserName"] = HttpContext.Session.GetString("UserName");
@@ -307,32 +404,71 @@ namespace Fastfood.Controllers
 
 
 		}
-		[HttpPost]
-		public IActionResult CreateItem(ItemsVM item)
-		{
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public IActionResult CreateItem(ItemsVM item)
+        {
             TempData["Access"] = HttpContext.Session.GetString("Access");
-			TempData["UserName"] = HttpContext.Session.GetString("UserName");
+            TempData["UserName"] = HttpContext.Session.GetString("UserName");
 
             if (HttpContext.Session.GetString("flag") == "true")
-			{
-				Item addItem = new();
-				addItem.ItemName = item.ItemName;
-				addItem.RecentUnitPrice = item.RecentUnitPrice;
-				addItem.Discount = item.Discount;
-				addItem.CategoryId = item.CategoryId;
-				addItem.Remarks = item.Remarks;
-				db.items.Add(addItem);
-				db.SaveChanges();
-				return RedirectToAction(nameof(ItemsDetail));
-			}
-			else
-			{
-				return RedirectToAction(nameof(Login));
-			}
+            {
+                if (ModelState.IsValid)
+                {
+                    try
+                    {
+                        // Handle image upload
+                        string uniqueFileName = null;
+                        if (item.ItemImage != null)
+                        {
+                            string uploadsFolder = Path.Combine(env.WebRootPath, "Images");
+
+                            string fileExtension = Path.GetExtension(item.ItemImage.FileName);
+                            uniqueFileName = Guid.NewGuid().ToString() + fileExtension;
+                            string filePath = Path.Combine(uploadsFolder, uniqueFileName);
+
+                            using (var fileStream = new FileStream(filePath, FileMode.Create))
+                            {
+                                item.ItemImage.CopyTo(fileStream);
+                            }
+                        }
+
+                        // Save item to database
+                        Item addItem = new()
+                        {
+                            ItemName = item.ItemName,
+                            RecentUnitPrice = item.RecentUnitPrice,
+                            Discount = item.Discount,
+                            CategoryId = item.CategoryId,
+                            Remarks = item.Remarks,
+                            Picture = uniqueFileName // Store image name
+                        };
+
+                        db.items.Add(addItem);
+                        db.SaveChanges();
+
+                        TempData["ToastType"] = "success";
+                        TempData["ToastMessage"] = $"Item {addItem.ItemName} added successfully";
+                        return RedirectToAction(nameof(ItemsDetail));
+                    }
+                    catch
+                    {
+                        return View(item);
+                    }
+                }
+                else
+                {
+                    return View(item); // Validation failed
+                }
+            }
+            else
+            {
+                return RedirectToAction(nameof(Login));
+            }
+        }
 
 
-		}
-		[HttpGet]
+        [HttpGet]
 		public IActionResult EditItem(int id)
 		{
             TempData["Access"] = HttpContext.Session.GetString("Access");
@@ -357,6 +493,7 @@ namespace Fastfood.Controllers
 					items.Remarks = item.Remarks;
 					var categories = db.categories.ToList();
 					items.category = categories;
+					items.Picture = item.Picture;
 					return View(items);
 				}
 				else
@@ -374,69 +511,143 @@ namespace Fastfood.Controllers
 
 
 		}
-		[HttpPost]
-		public IActionResult EditItem(ItemsVM item)
-		{
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public IActionResult EditItem(ItemsVM item)
+        {
+            TempData["UserName"] = HttpContext.Session.GetString("UserName");
             TempData["Access"] = HttpContext.Session.GetString("Access");
-			TempData["UserName"] = HttpContext.Session.GetString("UserName");
 
             if (HttpContext.Session.GetString("flag") == "true")
-			{
-				Item updateitem = new();
-				updateitem.ItemId = (int)item.ItemId;
-				updateitem.ItemName = item.ItemName;
-				updateitem.RecentUnitPrice = item.RecentUnitPrice;
-				updateitem.Discount = item.Discount;
-				updateitem.CategoryId = item.CategoryId;
-				updateitem.Remarks = item.Remarks;
-				db.items.Update(updateitem);
-				db.SaveChanges();
-				return RedirectToAction(nameof(ItemsDetail));
-			}
-			else
-			{
-				return RedirectToAction(nameof(Login));
-			}
+            {
+                if (ModelState.IsValid)
+                {
+                    try
+                    {
+                        var existingItem = db.items.Find(item.ItemId);
+                        if (existingItem != null)
+                        {
+                            existingItem.ItemName = item.ItemName;
+                            existingItem.RecentUnitPrice = item.RecentUnitPrice;
+                            existingItem.Discount = item.Discount;
+                            existingItem.CategoryId = item.CategoryId;
+                            existingItem.Remarks = item.Remarks;
 
+							 
+						   if (item.ItemImage != null && item.ItemImage.Length > 0)
+						   {
+							   if (!string.IsNullOrEmpty(existingItem.Picture))
+							   {
+								   var usageCount = db.items.Count(i => i.Picture == existingItem.Picture);
+								   if (usageCount == 1)
+								   {
+									   var oldPath = Path.Combine(env.WebRootPath, "images", existingItem.Picture);
+									   if (System.IO.File.Exists(oldPath))
+									   {
+										   System.IO.File.Delete(oldPath);
+									   }
+								   }
+							   }
 
-		}
-		public IActionResult DeleteItem(int id)
-		{
+							   var fileName = Guid.NewGuid().ToString() + Path.GetExtension(item.ItemImage.FileName);
+							   var filePath = Path.Combine(env.WebRootPath, "images", fileName);
+
+							   using (var stream = new FileStream(filePath, FileMode.Create))
+							   {
+								   item.ItemImage.CopyTo(stream);
+							   }
+
+							   existingItem.Picture = fileName;
+						   }
+						   
+
+						   db.items.Update(existingItem);
+                            db.SaveChanges();
+
+                            TempData["ToastType"] = "success";
+                            TempData["ToastMessage"] = $"Item {existingItem.ItemName} updated successfully.";
+                            return RedirectToAction(nameof(ItemsDetail));
+                        }
+
+                        return NotFound();
+                    }
+                    catch
+                    {
+                        TempData["ToastType"] = "error";
+                        TempData["ToastMessage"] = "An error occurred while updating the item.";
+                        return View(item);
+                    }
+                }
+                else
+                {
+                    TempData["ToastType"] = "warning";
+                    TempData["ToastMessage"] = "Please correct the form errors.";
+                    return View(item);
+                }
+            }
+            else
+            {
+                return RedirectToAction(nameof(Login));
+            }
+        }
+
+        public IActionResult DeleteItem(int id)
+        {
             TempData["Access"] = HttpContext.Session.GetString("Access");
-			TempData["UserName"] = HttpContext.Session.GetString("UserName");
+            TempData["UserName"] = HttpContext.Session.GetString("UserName");
 
             if (HttpContext.Session.GetString("flag") == "true")
-			{
-				var methodName = "DeleteItem";
-				var usercode = HttpContext.Session.GetString("UserCode");
+            {
+                var methodName = "DeleteItem";
+                var usercode = HttpContext.Session.GetString("UserCode");
 
-				bool permission = db.userPermissions.Where(u => u.UserCode.ToString() == usercode && u.MethodName == methodName).Select(u => u.View).FirstOrDefault();
-				if (permission)
-				{
-					TempData["Permission"] = "";
-					var deleteitem = db.items.Find(id);
-					db.items.Remove(deleteitem);
-					db.SaveChanges();
-					return RedirectToAction(nameof(ItemsDetail));
-				}
-				else
-				{
-					TempData["Permission"] = "You do not have permission to access this page";
-					return View();
-				}
-			}
-			else
-			{
-				return RedirectToAction(nameof(Login));
-			}
+                bool permission = db.userPermissions
+                    .Where(u => u.UserCode.ToString() == usercode && u.MethodName == methodName)
+                    .Select(u => u.View)
+                    .FirstOrDefault();
 
+                if (permission)
+                {
+                    var deleteItem = db.items.Find(id);
 
+                    if (deleteItem != null)
+                    {
+                        // Optional image deletion logic
+                        if (!string.IsNullOrEmpty(deleteItem.Picture))
+                        {
+                            var imagePath = Path.Combine(env.WebRootPath, "images", deleteItem.Picture);
+                            if (System.IO.File.Exists(imagePath))
+                            {
+                                System.IO.File.Delete(imagePath);
+                            }
+                        }
 
-		}
-		#endregion
+                        db.items.Remove(deleteItem);
+                        db.SaveChanges();
 
-		#region Method
-		[HttpGet]
+                        TempData["ToastType"] = "error";
+                        TempData["ToastMessage"] = $"Item {deleteItem.ItemName} deleted successfully.";
+                        return RedirectToAction(nameof(ItemsDetail));
+                    }
+
+                    return NotFound();
+                }
+                else
+                {
+                    TempData["Permission"] = "You do not have permission to access this page";
+                    return View();
+                }
+            }
+            else
+            {
+                return RedirectToAction(nameof(Login));
+            }
+        }
+
+        #endregion
+
+        #region Method
+        [HttpGet]
 		public IActionResult MethodDetail()
 		{
 			TempData["UserName"] = HttpContext.Session.GetString("UserName");
@@ -775,7 +986,7 @@ namespace Fastfood.Controllers
 					TempData["UserName"] = user.Name;
 					TempData["Access"] = user.Access;
 					TempData["loginmessage"] = "Welcome To the System";
-					return RedirectToAction("HomeIndex", "Home");
+					return RedirectToAction("Index");
 
 				}
 				else

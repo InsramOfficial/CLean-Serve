@@ -15,5 +15,8 @@ namespace Fastfood.Models
         public int? Discount { get; set; }
         public string? Remarks { get; set; }
         //public double NetTotal { get; set; }
+        public string? Picture { get; set; }
+        [NotMapped]
+        public IFormFile image { get; set; }
     }
 }
