@@ -13,6 +13,6 @@ namespace Fastfood.Models
         public int? Root {  get; set; }
         public string? Picture { get; set; }
         [NotMapped]
-        public IFormFile image { get; set; }
+        public IFormFile? image { get; set; }
     }
 }

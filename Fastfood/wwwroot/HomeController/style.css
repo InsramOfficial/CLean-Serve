@@ -689,10 +689,3 @@ a.btn-link.text-light:after {
     margin-top: 10px;
   }
 }
-
-/* ============ mobile view .end// ============ */
-.banner-section {
-  background-image: url('images/banner-1.jpg');
-  background-repeat: no-repeat;
-  background-size: cover;
-}

@@ -17,6 +17,6 @@ namespace Fastfood.Models
         //public double NetTotal { get; set; }
         public string? Picture { get; set; }
         [NotMapped]
-        public IFormFile image { get; set; }
+        public IFormFile ?image { get; set; }
     }
 }

@@ -1,0 +1,50 @@
+﻿@model List<Fastfood.Models.Category>
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Shop - Clean Serve</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link href="~/homecontroller/items-page/style.css   " rel="stylesheet" />
+</head>
+
+<body>
+    <div class="container my-5">
+        <div class="row mb-4">
+            <div class="col text-center">
+                <h2 class="fw-bold">Shop by Category</h2>
+                <p class="text-muted">Browse our top product categories</p>
+            </div>
+        </div>
+
+        <div class="row justify-content-center">
+            @foreach (var category in Model)
+            {
+                <div class="col-12 col-sm-6 col-md-4 col-lg-3 d-flex justify-content-center">
+                    <a asp-action="Items" asp-route-id="@category.CategoryId" class="text-decoration-none text-dark w-100">
+
+                        <div class="card">
+                            <div class="tilt">
+                                <div class="img">
+                                    <img src="~/images/@category.Picture" alt="@category.CategoryName" class="img-fluid" />
+                                </div>
+                            </div>
+                            <div class="info">
+                                <h2 class="title">@category.CategoryName</h2>
+                            </div>
+                        </div>
+                    </a>
+                </div>
+            }
+        </div>
+    </div>
+
+
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+
+</html>
