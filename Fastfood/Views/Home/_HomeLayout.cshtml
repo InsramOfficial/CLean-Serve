@@ -1,4 +1,11 @@
-﻿<!DOCTYPE html>
+﻿@{
+    
+    var ToastMessage = TempData["ToastMessage"] as string;
+    var ToastType = TempData["ToastType"] as string;
+  
+}
+
+<!DOCTYPE html>
 <html lang="en">
 
 <head>
@@ -19,16 +26,25 @@
     <link rel="manifest" href="~/assets/img//site.webmanifest">
 
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/swiper@9/swiper-bundle.min.css">
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha3/dist/css/bootstrap.min.css" rel="stylesheet"
-          integrity="sha384-KK94CHFLLe+nY2dmCWGMq91rCGa5gtU4mk92HdvYe+M/SXH301p5ILy+dN9+nJOZ" crossorigin="anonymous">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" />
     <link rel="stylesheet" type="text/css" href="~/homecontroller/css/vendor.css">
     <link rel="stylesheet" type="text/css" href="~/homecontroller/style.css">
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
+    @* Toast Notification *@
+    <link href="~/toast_notification/dist/js-snackbar.css" rel="stylesheet" />
+    <link href="~/toast_notification/dist/js-snackbar.min.css" rel="stylesheet" />
+    <link href="~/toast_notification/src/js-snackbar.css" rel="stylesheet" />
+
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;700&family=Open+Sans:ital,wght@0,400;0,700;1,400;1,700&display=swap"
           rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.css" rel="stylesheet" />
 
+    <!-- UserMenu drop down CSS File -->
+    <link href="~/homecontroller/css/usermenudropdown.css" rel="stylesheet" />
+   
 </head>
 
 <body>
@@ -344,21 +360,129 @@
 
                 <!-- Right: Icons -->
                 <div class="col-6 col-lg-2 d-flex justify-content-end align-items-center gap-3 mt-3 mt-lg-0">
-                     <a href="#" class="p-2" data-bs-toggle="modal" data-bs-target="#exampleModal">
-                        <svg width="24" height="24">
-                            <use xlink:href="#user"></use>
-                        </svg>
+                    @* Model Login Popup *@
+                    @{
+                        var clientName = Context.Session.GetString("ClientName");
+                        var clientId = Context.Session.GetString("ClientId");
+                    }
+
+                    @if (!string.IsNullOrEmpty(clientName) && !string.IsNullOrEmpty(clientId))
+                    {
+                        <!-- Show Profile Dropdown -->
+                        <nav class="header-nav ms-auto">
+                            <ul class="d-flex align-items-center">
+                                <li class="nav-item dropdown pe-3">
+                                    <a class="nav-link nav-profile d-flex align-items-center pe-0" href="#" data-bs-toggle="dropdown">
+                                        <img src="https://www.pngmart.com/files/21/Admin-Profile-Vector-PNG-Image.png" alt="Profile" class="rounded-circle" width="32" height="32">
+                                        <span class="d-none d-md-block dropdown-toggle ps-2">@clientName</span>
+                                    </a>
+
+                                    <ul class="dropdown-menu dropdown-menu-end dropdown-menu-arrow profile">
+                                        <li class="dropdown-header">
+                                            <h6>@clientName</h6>
+                                            <span>Client Panel</span>
+                                        </li>
+                                        <li><hr class="dropdown-divider"></li>
+
+                                        <li>
+                                            <a class="dropdown-item d-flex align-items-center" href="/Home/Contact">
+                                                <i class="bi bi-question-circle"></i>
+                                                <span>About / Contact</span>
+                                            </a>
+                                        </li>
+                                        <li><hr class="dropdown-divider"></li>
+
+                                        <li>
+                                            <a class="dropdown-item d-flex align-items-center text-danger" href="/Home/Logout">
+                                                <i class="bi bi-box-arrow-right"></i>
+                                                <span>Logout</span>
+                                            </a>
+                                        </li>
+                                    </ul>
+                                </li>
+                            </ul>
+                        </nav>
+                    }
+                    else
+                    {
+                        <!-- Show Login Icon/Modal Trigger -->
+                        <a href="#" class="p-2" data-bs-toggle="modal" data-bs-target="#exampleModal">
+                            <svg width="24" height="24">
+                                <use xlink:href="#user"></use>
+                            </svg>
+
+                        </a>
+                    }
+
+                    <a asp-action="Cart" asp-controller="Home" class="d-flex align-items-center gap-1 text-decoration-none text-dark">
+                        <i class="bi bi-cart3 fs-4"></i>
+                        <span id="cartCount"
+                              class="badge bg-danger rounded-pill px-2 py-1"
+                              style="font-size: 0.8rem;">
+                            0
+                        </span>
                     </a>
 
-                    <a href="#" class="p-2" data-bs-toggle="offcanvas" data-bs-target="#offcanvasCart" aria-controls="offcanvasCart">
-                        <svg width="24" height="24">
-                            <use xlink:href="#shopping-bag"></use>
-                        </svg>
-                    </a>
+
                 </div>
             </div>
         </div>
+        @if (!string.IsNullOrEmpty(ToastMessage))
+        {
+            <script>
+                document.addEventListener("DOMContentLoaded", function () {
+                    showToast("@ToastMessage", "@ToastType");
+                });
+            </script>
+        }
+        
+  <!-- Modal with Login/Signup Tabs -->
+            <div class="modal fade" id="exampleModal" tabindex="-1" aria-labelledby="exampleModalLabel" aria-hidden="true">
+                <div class="modal-dialog modal-dialog-centered">
+                    <div class="modal-content">
+                        <div class="modal-header border-0">
+                            <h5 class="modal-title" id="exampleModalLabel">Welcome</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                        </div>
+
+                        <!-- Nav Tabs -->
+                        <ul class="nav nav-tabs px-3" id="authTabs" role="tablist">
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link active" id="login-tab" data-bs-toggle="tab" data-bs-target="#login" type="button" role="tab">Login</button>
+                            </li>
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link" id="signup-tab" data-bs-toggle="tab" data-bs-target="#signup" type="button" role="tab">Signup</button>
+                            </li>
+                        </ul>
+
+                        <!-- Tab Contents -->
+                        <div class="tab-content p-3" id="authTabsContent">
+
+                            <!-- Login Form -->
+                            <div class="tab-pane fade show active" id="login" role="tabpanel">
+                                <form asp-controller="Home" asp-action="Login" method="post">
+                                    <input type="email" name="Email" placeholder="Email" class="form-control mb-2" required />
+                                    <input type="password" name="Password" placeholder="Password" class="form-control mb-2" required />
+                                    <button type="submit" class="btn btn-primary w-100">Login</button>
+                                </form>
+                            </div>
+
+                            <!-- Signup Form -->
+                            <div class="tab-pane fade" id="signup" role="tabpanel">
+                                <form asp-controller="Home" asp-action="Register" method="post">
+                                    <input type="text" name="Name" placeholder="Name" class="form-control mb-2" required />
+                                    <input type="email" name="Email" placeholder="Email" class="form-control mb-2" required />
+                                    <input type="password" name="Password" placeholder="Password" class="form-control mb-2" required />
+                                    <button type="submit" class="btn btn-success w-100">Sign Up</button>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        
     </header>
+   
 @RenderBody()
     <footer class="py-5">
         <div class="container-lg">
@@ -508,73 +632,32 @@
     </div>
 
 
+   
 
-    @* Model Login Popup *@
-    <!-- Modal with Login/Signup Tabs -->
-    <div class="modal fade" id="exampleModal" tabindex="-1" aria-labelledby="exampleModalLabel" aria-hidden="true">
-        <div class="modal-dialog modal-dialog-centered">
-            <div class="modal-content">
-                <div class="modal-header border-0">
-                    <h5 class="modal-title" id="exampleModalLabel">Welcome</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                </div>
-
-                <!-- Nav Tabs -->
-                <ul class="nav nav-tabs px-3" id="authTabs" role="tablist">
-                    <li class="nav-item" role="presentation">
-                        <button class="nav-link active" id="login-tab" data-bs-toggle="tab" data-bs-target="#login" type="button" role="tab">Login</button>
-                    </li>
-                    <li class="nav-item" role="presentation">
-                        <button class="nav-link" id="signup-tab" data-bs-toggle="tab" data-bs-target="#signup" type="button" role="tab">Signup</button>
-                    </li>
-                </ul>
-
-                <!-- Tab Contents -->
-                <div class="tab-content p-3" id="authTabsContent">
-                    <!-- Login Form -->
-                    <div class="tab-pane fade show active" id="login" role="tabpanel">
-                        <form>
-                            <div class="mb-3">
-                                <label for="loginEmail" class="form-label">Email address</label>
-                                <input type="email" class="form-control" id="loginEmail" placeholder="Enter email">
-                            </div>
-                            <div class="mb-3">
-                                <label for="loginPassword" class="form-label">Password</label>
-                                <input type="password" class="form-control" id="loginPassword" placeholder="Password">
-                            </div>
-                            <button type="submit" class="btn btn-primary w-100">Login</button>
-                        </form>
-                    </div>
-
-                    <!-- Signup Form -->
-                    <div class="tab-pane fade" id="signup" role="tabpanel">
-                        <form>
-                            <div class="mb-3">
-                                <label for="signupName" class="form-label">Full Name</label>
-                                <input type="text" class="form-control" id="signupName" placeholder="Your name">
-                            </div>
-                            <div class="mb-3">
-                                <label for="signupEmail" class="form-label">Email address</label>
-                                <input type="email" class="form-control" id="signupEmail" placeholder="Enter email">
-                            </div>
-                            <div class="mb-3">
-                                <label for="signupPassword" class="form-label">Password</label>
-                                <input type="password" class="form-control" id="signupPassword" placeholder="Password">
-                            </div>
-                            <button type="submit" class="btn btn-success w-100">Signup</button>
-                        </form>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
     <script src="~/homecontroller/js/jquery-1.11.0.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/swiper@9/swiper-bundle.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha3/dist/js/bootstrap.bundle.min.js"
-            integrity="sha384-ENjdO4Dr2bkBIFxQpeoTz1HIcje39Wm4jDKdf19U8gI4ddQ3GYNS7NTKfAdVQSZe"
-            crossorigin="anonymous"></script>
+   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
     <script src="~/homecontroller/js/plugins.js"></script>
     <script src="~/homecontroller/js/script.js"></script>
+    <script src="~/toast_notification/custom.js"></script>
+
+   
+
+    <script>
+        window.addEventListener('DOMContentLoaded', () => {
+            fetch('/Home/GetCartCount')
+                .then(res => res.json())
+                .then(data => {
+                    if (data.success) {
+                        document.getElementById("cartCount").innerText = data.cartCount;
+                    }
+                })
+                .catch(err => {
+                    console.error("Error loading cart count:", err);
+                });
+        });
+    </script>
+
 </body>
 
 </html>

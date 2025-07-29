@@ -8,6 +8,7 @@ namespace Fastfood.Models
     {
         [Key]
         public int SaleId { get; set; }
+        public int? ClientId { get; set; }
         public DateTime? SaleDate { get; set; }
         public DateTime? LastModified { get; set; }
         public double? Payment { get; set; }

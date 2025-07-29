@@ -11,10 +11,11 @@ var con = builder.Configuration.GetConnectionString("Default_Connection").ToStri
 builder.Services.AddDbContext<DataDbContext>(options => options.UseSqlServer(con));
 builder.Services.AddSession(options =>
 {
-    options.IdleTimeout = TimeSpan.FromMinutes(30); // Adjust the timeout as needed
+    options.IdleTimeout = TimeSpan.FromDays(2); 
     options.Cookie.HttpOnly = true;
     options.Cookie.IsEssential = true;
 });
+
 builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
 	.AddCookie(options =>
 	{
@@ -35,11 +36,11 @@ if (!app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 app.UseStaticFiles();
-app.UseSession();
 app.UseRouting();
+app.UseSession();        
 app.UseAuthentication();
-
-app.UseMiddleware<UserIdMiddleware>();
+app.UseAuthorization();
+app.UseMiddleware<UserIdMiddleware>(); 
 
 app.UseAuthorization();
 

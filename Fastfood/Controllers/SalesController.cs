@@ -149,9 +149,7 @@ namespace Fastfood.Controllers
 			{
 				return RedirectToAction("Login", "ControlPanel");
 			}
-
-			
-            
+			 
         }
         [HttpGet]
         public IActionResult BankDetail(int Bin)

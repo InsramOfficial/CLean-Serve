@@ -1,4 +1,17 @@
-﻿<section class="py-5 bg-light">
+﻿@* @{
+
+    var ToastMessage = TempData["ToastMessage"] as string;
+    var ToastType = TempData["ToastType"] as string;
+}
+@if (!string.IsNullOrEmpty(ToastMessage))
+{
+    <script>
+        document.addEventListener("DOMContentLoaded", function () {
+            showToast("@ToastMessage", "@ToastType");
+        });
+    </script>
+} *@
+<section class="py-5 bg-light">
     <div class="container">
         <div class="row align-items-center">
             <div class="col-md-6 mb-4 mb-md-0">
