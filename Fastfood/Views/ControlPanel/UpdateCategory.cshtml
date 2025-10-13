@@ -6,16 +6,11 @@
 
 @if (!string.IsNullOrEmpty(permission))
 {
-    <div style="display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0;">
-        <div style="width: 400px; text-align: center; padding: 30px; border: 2px dashed #dc3545; border-radius: 10px; background-color: #fff0f1; color: #842029; box-shadow: 0 0 12px rgba(220, 53, 69, 0.2); font-family: 'Segoe UI', sans-serif;">
-            <div style="font-size: 24px; font-weight: bold; margin-bottom: 10px;">Access Denied</div>
-            <div style="font-size: 16px; margin-bottom: 20px;">
-                You do not have the necessary permissions to access this page.
-            </div>
-            <a asp-action="Index" asp-controller="ControlPanel"
-               style="display: inline-block; padding: 10px 25px; background-color: #dc3545; color: #fff; text-decoration: none; border-radius: 6px; font-weight: bold; transition: background-color 0.3s;">
-                Return to Home
-            </a>
+    <div style="display: flex; align-items: center; justify-content: center; height: 100vh;">
+        <div style="max-width: 450px; padding: 30px; border: 2px dashed #dc3545; border-radius: 10px; background-color: #fff0f1; color: #842029; box-shadow: 0 0 12px rgba(220, 53, 69, 0.2); font-family: 'Segoe UI', sans-serif;">
+            <h4 class="mb-3 font-weight-bold">Access Denied</h4>
+            <p>You do not have the necessary permissions to access this page.</p>
+            <a asp-action="Index" asp-controller="ControlPanel" class="btn btn-danger mt-3">Return to Home</a>
         </div>
     </div>
 }
@@ -30,42 +25,64 @@ else
     <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
-        <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
-        <title>Create Customer</title>
+        <title>Update Category</title>
+        <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
+        <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" />
         <style>
             body {
-                background: #F4F6FA; /* Light background color */
-                color: #3EADFA; /* Text color */
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                height: 100vh;
-                margin-top: -50px;
+                background-color: #F8FAFC;
+                font-family: 'Inter', sans-serif;
+                padding-top: 40px;
             }
 
-            .background {
-                border: 1px solid #3EADFA; /* Border color */
-                background: #FFFFFF; /* Form background color */
-                padding: 40px;
-                border-radius: 8px;
-                box-shadow: 0 0 10px rgba(0, 0, 0, 0.1); /* Subtle box shadow */
+            .card-form {
+                background: white;
+                border-radius: 12px;
+                padding: 35px;
+                box-shadow: 0 10px 25px rgba(0, 0, 0, 0.08);
+                max-width: 600px;
+                margin: auto;
             }
 
-            button {
-                float: right;
-                background-color: #3EADFA; /* Button background color */
-                color: #FFFFFF; /* Button text color */
-                border: 1px solid #3EADFA; /* Button border color */
-                border-radius: 4px;
+            .form-title {
+                font-weight: 600;
+                margin-bottom: 25px;
+                color: #333;
+                text-align: center;
+            }
+
+            .btn-primary, .btn-secondary {
                 padding: 10px 20px;
-                cursor: pointer;
+                border-radius: 6px;
+                font-weight: 500;
             }
 
-                /* Hover effect for the button */
-                button:hover {
-                    background-color: #1F75C1; /* Darker blue on hover */
-                    border-color: #1F75C1;
+            .btn-primary {
+                background-color: #007bff;
+                border: none;
+            }
+
+                .btn-primary:hover {
+                    background-color: #0056b3;
                 }
+
+            .btn-secondary {
+                background-color: #6c757d;
+                color: white;
+            }
+
+                .btn-secondary:hover {
+                    background-color: #565e64;
+                }
+
+            img.preview {
+                width: 100px;
+                height: 100px;
+                object-fit: cover;
+                border-radius: 50%;
+                border: 2px solid #ddd;
+                margin-top: 10px;
+            }
         </style>
     </head>
 
@@ -78,51 +95,47 @@ else
                 });
             </script>
         }
+
         <div class="container">
-            <div class="row">
-                <div class="col-md-12"></div>
+            <div class="card-form">
+                <form method="post" asp-action="UpdateCategory" asp-controller="ControlPanel" enctype="multipart/form-data">
+                    <h3 class="form-title">Update Category</h3>
+                    <div class="form-group">
+                         
+                        @if (!string.IsNullOrEmpty(Model.Picture))
+                        {
+                            <div class="text-center mb-3">
+                                <img src="~/images/@Model.Picture" alt="Current Image"
+                                     style="width: 150px; height: 150px; border-radius: 50%; object-fit: cover; border: 3px solid #3EADFA;" />
+                            </div>
+                        }
+                        else
+                        {
+                            <p class="text-muted"><em>No image uploaded</em></p>
+                        }
+                    </div>
+                    <div class="form-group">
+                        <label asp-for="CategoryName">Category Name</label>
+                        <input asp-for="CategoryName" class="form-control" placeholder="Enter Category Name" />
+                        <input asp-for="CategoryId" type="hidden" />
+                    </div>
 
-                <div class="col-md-12 background">
-                    <form method="post" asp-action="UpdateCategory" asp-controller="ControlPanel" enctype="multipart/form-data">
-                        <h2 class="text-center">Update Category</h2>
-                        <hr>
+                   
 
-                        <div class="form-group">
-                            <label asp-for="CategoryName">Category Name:</label>
-                            <input asp-for="CategoryName" type="text" class="form-control" placeholder="Enter Category Name" />
-                            <input asp-for="CategoryId" type="hidden" />
-                        </div>
+                    <div class="form-group">
+                        <label asp-for="image">Upload New Image</label>
+                        <input asp-for="image" type="file" class="form-control" />
+                        <input asp-for="Picture" hidden type="file" class="form-control" />
+                        <span asp-validation-for="image" class="text-danger"></span>
+                    </div>
 
-                        <div class="form-group mt-3">
-                            <label>Current Image:</label><br />
-                            @if (!string.IsNullOrEmpty(Model.Picture))
-                            {
-                                <img src="~/images/@Model.Picture" alt="Current Image" width="100" height="100" style="border-radius: 50%; object-fit: cover;" />
-                            }
-                            else
-                            {
-                                <p><em>No image uploaded</em></p>
-                            }
-                        </div>
-
-                      
-                        <div class="form-group mt-3">
-                            <label asp-for="image">Upload New Image:</label>
-                            <input asp-for="image" type="file" class="form-control" />
-                            <input asp-for="Picture" hidden type="file" class="form-control" />
-                            <span asp-validation-for="image" class="text-danger"></span>
-                        </div>
-
-                        <hr>
-                        <button type="submit" class="btn btn-success mr-2">Update</button>
-                        <a asp-action="CategoryDetails" asp-controller="ControlPanel" class="btn btn-secondary" style="color:white;">Back</a>
-                    </form>
-                </div>
-
-                <div class="col-md-12"></div>
+                    <div class="form-group mt-4 text-right">
+                        <button type="submit" class="btn btn-primary">Update</button>
+                        <a asp-action="CategoryDetails" asp-controller="ControlPanel" class="btn btn-secondary ml-2">Back</a>
+                    </div>
+                </form>
             </div>
         </div>
-
     </body>
     </html>
 }

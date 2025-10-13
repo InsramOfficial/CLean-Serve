@@ -16,6 +16,7 @@ namespace Fastfood.Models
         public double? Cash_Received { get; set; }
         public double? Paid_Back { get; set; }
         public string? Modifier { get; set; }
+        public string?DealingPerson { get; set; }
         public int? TokenNumber { get; set; }
         public string? Serving { get; set; }
     }

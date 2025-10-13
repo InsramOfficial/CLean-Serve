@@ -19,8 +19,8 @@
 }
 else
 {
-    @using Fastfood.ViewModel;
-    @model ItemsVM;
+    @using Fastfood.ViewModel
+@model RawMaterialConsumptionVM
 
     <!DOCTYPE html>
     <html lang="en">
@@ -29,12 +29,11 @@ else
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
         <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
-        <title>Add Item</title>
+        <title>Add Raw Material Consumption</title>
         <style>
             body {
                 background: #F4F6FA;
                 font-family: 'Segoe UI', sans-serif;
-               
             }
 
             .form-container {
@@ -71,63 +70,41 @@ else
     <body>
         <div class="container">
             <div class="form-container">
-                <form method="post" asp-action="CreateItem" asp-controller="ControlPanel" enctype="multipart/form-data">
-                    <h2 class="text-center mb-4">Add Item</h2>
-
+                <form method="post" asp-action="EditRawMaterialConsumption" asp-controller="ControlPanel">
+                    <h2 class="text-center mb-4">Add Raw Material Consumption</h2>
+                    <input type="hidden" asp-for="Consumption.S_No" />
                     <div class="form-row">
                         <div class="form-group col-md-6">
-                            <label asp-for="ItemName">Item Name</label>
-                            <input asp-for="ItemName" class="form-control" placeholder="Enter Item Name">
-                        </div>
-                        <div class="form-group col-md-6">
-                            <label asp-for="RecentUnitPrice">Unit Price</label>
-                            <input asp-for="RecentUnitPrice" class="form-control" placeholder="Enter Unit Price">
-                        </div>
-                    </div>
-
-                    <div class="form-row">
-                        <div class="form-group col-md-6">
-                            <label asp-for="Discount">Discount</label>
-                            <input asp-for="Discount" class="form-control" placeholder="Enter Discount">
-                        </div>
-                        <div class="form-group col-md-6">
-                            <label>Category</label>
-                            <select asp-for="CategoryId" class="form-control">
-                                <option value="">---Select---</option>
-                                @foreach (var item in Model.category)
-                                {
-                                    <option value="@item.CategoryId">@item.CategoryName</option>
-                                }
+                            <label>Raw Material</label>
+                            <select asp-for="Consumption.RMInv_ItemId" class="form-control"
+                                    asp-items="@(new SelectList(Model.Consumeables, "CMID", "CMName"))">
+                                <option value="">--- Select Raw Material ---</option>
                             </select>
                         </div>
+                        <div class="form-group col-md-6">
+                            <label>Quantity</label>
+                            <input asp-for="Consumption.RMQTY" class="form-control" placeholder="Enter Quantity" />
+                        </div>
                     </div>
 
                     <div class="form-row">
                         <div class="form-group col-md-6">
-                            <label asp-for="ItemImage">Item Image</label>
-                            <input asp-for="ItemImage" type="file" class="form-control-file" required />
+                            <label>Base Item (Menu Item)</label>
+                            <select asp-for="Consumption.BInv_ItemId" class="form-control"
+                                    asp-items="@(new SelectList(Model.BaseItems, "ItemId", "ItemName", Model.Consumption.BInv_ItemId))">
+                                <option value="">--- Select Base Item ---</option>
+                            </select>
+
                         </div>
                         <div class="form-group col-md-6">
-                            <label asp-for="ItemType">Item Type</label>
-                            <select asp-for="ItemType" class="form-control">
-                                <option value="">-- Select Item Type --</option>
-                                <option value="Beverage">Beverage (e.g., Drinks)</option>
-                                <option value="Inhouse Built">In-House Built (e.g., Recipe)</option>
-                                <option value="Consumable">Consumable (e.g., Raw Materials, Supplies)</option>
-                            </select>
-                            <span asp-validation-for="ItemType" class="text-danger"></span>
+                            <label>Remarks</label>
+                            <input asp-for="Consumption.Remarks" class="form-control" placeholder="Enter Remarks" />
                         </div>
-
-                    </div>
-
-                    <div class="form-group">
-                        <label asp-for="Remarks">Remarks</label>
-                        <input asp-for="Remarks" class="form-control" placeholder="Enter Remarks">
                     </div>
 
                     <div class="d-flex justify-content-between mt-4">
-                        <a asp-action="ItemsDetail" asp-controller="ControlPanel" class="btn btn-secondary">Back</a>
-                        <button type="submit" class="btn btn-custom">Create</button>
+                        <a asp-action="RawMaterialConsumption" asp-controller="ControlPanel" class="btn btn-secondary">Back</a>
+                        <button type="submit" class="btn btn-custom">Update</button>
                     </div>
                 </form>
             </div>

@@ -56,6 +56,19 @@ else
                         <span asp-validation-for="Name" class="text-danger"></span>
 
                     </div>
+                    <!-- DbStatus (Boolean Toggle) -->
+                    <div class="col-md-6 mb-3">
+                        <label asp-for="DbStatus" class="form-label">Active Status</label><br />
+
+                        <div class="form-check">
+                            <input type="checkbox" asp-for="DbStatus" class="form-check-input" id="dbStatusCheckbox" />
+                            <label class="form-check-label" for="dbStatusCheckbox">
+                                @(Model.DbStatus ? "Active" : "Inactive")
+                            </label>
+                        </div>
+
+                        <span asp-validation-for="DbStatus" class="text-danger"></span>
+                    </div>
 
                     <div class="col-md-6 mb-3">
                         <label asp-for="Address" class="form-label"></label>
@@ -84,7 +97,8 @@ else
                         <label asp-for="Email" class="form-label"></label>
                         <input asp-for="Email" class="form-control" maxlength="100" />
                         <span asp-validation-for="Email" class="text-danger"></span>
-                    </div>
+                    </div> 
+                  
 
                     <div class="col-md-6 mb-3">
                         <label asp-for="Citycode" class="form-label"></label>
@@ -118,12 +132,7 @@ else
                         <span asp-validation-for="Accountid" class="text-danger"></span>
                     </div>
 
-                    <!-- DbStatus (Boolean Toggle) -->
-                    <div class="col-md-6 mb-3">
-                        <label asp-for="DbStatus" class="form-label">Active Status</label><br /> 
-                        <input type="checkbox" asp-for="DbStatus" class="form-check-input" />
-                        <span asp-validation-for="DbStatus" class="text-danger"></span>
-                    </div>
+                  
                      
                     <!-- Modifier -->
                     <div class="col-md-6 mb-3">

@@ -162,7 +162,7 @@
                     <div class="swiper-wrapper">
                         @foreach (var item in Model.Categories)
                         {
-                            <a href="category.html" class="nav-link swiper-slide text-center">
+                            <a asp-action="Items" asp-controller="Home" asp-route-id="@item.CategoryId" class="nav-link swiper-slide text-center">
                                 <img src="~/images/@item.Picture"
                                      alt="Category Thumbnail"
                                      style="width: 120px; height: 120px; object-fit: cover; border-radius: 50%; border: 2px solid #eee; background-color: #fff;">

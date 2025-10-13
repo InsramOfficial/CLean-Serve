@@ -10,9 +10,11 @@ namespace Fastfood.Models
         public int ItemId { get; set; }
         public string? ItemName { get; set; }
         public int? CategoryId { get; set; }
-        public int? RecentUnitPrice { get; set; } 
+        public int? RecentUnitPrice { get; set; }
+        public decimal? RetailPrice { get; set; }
         public int? Discount { get; set; }
-        public string? Remarks { get; set; } 
+        public string? Remarks { get; set; }
+        public string? ItemType { get; set; }
         public string? Picture { get; set; }
         [NotMapped]
         public IFormFile ?image { get; set; }

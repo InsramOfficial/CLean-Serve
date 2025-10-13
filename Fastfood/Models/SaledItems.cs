@@ -1,5 +1,8 @@
-﻿namespace Fastfood.Models
+﻿using System.ComponentModel.DataAnnotations.Schema;
+
+namespace Fastfood.Models
 {
+    [Table("SaledItems")]
     public class SaledItems
     {
         public string? ItemId { get; set; }

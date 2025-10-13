@@ -6,7 +6,8 @@ using Fastfood.ViewModel;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using System.Diagnostics;
+using System;
+using System.Linq;
 
 namespace Fastfood.Controllers
 {
@@ -14,50 +15,68 @@ namespace Fastfood.Controllers
     {
         private readonly IWebHostEnvironment env;
         private readonly DataDbContext db;
+
         public SalesController(DataDbContext _db, IWebHostEnvironment _env)
         {
             db = _db;
             env = _env;
             System.Text.Encoding.RegisterProvider(System.Text.CodePagesEncodingProvider.Instance);
-
         }
+
         public IActionResult AccessDenied()
         {
             TempData["UserName"] = HttpContext.Session.GetString("UserName");
             return View();
         }
+
+        [HttpGet]
+        public async Task<IActionResult> GetAvailableStockRecords()
+        {
+            var stock = await db.StockTracking
+                .GroupBy(st => new { st.ItemId, st.ItemName })
+                .Select(g => new
+                {
+                    g.Key.ItemId,
+                    g.Key.ItemName,
+                    AvailableQty = g.Sum(x => x.Source != null && x.Source.StartsWith("Purchase") ? x.Qty : -x.Qty)
+                })
+                .Where(x => x.AvailableQty > 0)
+                .ToListAsync();
+
+            return Json(stock);
+        }
+
         public IActionResult SalesIndex()
         {
             TempData["UserName"] = HttpContext.Session.GetString("UserName");
-            //var user = HttpContext.Session.GetString("UserName");
             if (HttpContext.Session.GetString("flag") == "true")
             {
-				var methodName = "SalesIndex";
-				var usercode = HttpContext.Session.GetString("UserCode");
+                var methodName = "SalesIndex";
+                var usercode = HttpContext.Session.GetString("UserCode");
 
-				bool permission = db.userPermissions.Where(u => u.UserCode.ToString() == usercode && u.MethodName == methodName).Select(u => u.View).FirstOrDefault();
-				if (permission)
-				{
-					var clients = db.clients.ToList();
-					var categories = db.categories.ToList();
-					List<Category> list = new List<Category>();
-					List<SaledItems> DynamicData = new List<SaledItems>();
-					List<Client> _clients = new List<Client>();
-					_clients = clients;
-					list = categories;
-					CategoryItemVM categoryItemViewModel = new CategoryItemVM();
-					categoryItemViewModel.category = list;
-					categoryItemViewModel.DynamicData = DynamicData;
-					categoryItemViewModel.clients = _clients;
+                bool permission = db.userPermissions.Where(u => u.UserCode.ToString() == usercode && u.MethodName == methodName)
+                                                   .Select(u => u.View)
+                                                   .FirstOrDefault();
+                if (permission)
+                {
+                    var clients = db.clients.ToList();
+                    var categories = db.categories.ToList();
 
-					TempData["Permission"] = "";
-					return View(categoryItemViewModel);
-				}
-				else
-				{
-					TempData["Permission"] = "You do not have permission to access this page";
-					return View();
-				}
+                    CategoryItemVM categoryItemViewModel = new CategoryItemVM
+                    {
+                        category = categories,
+                        DynamicData = new List<SaledItems>(),
+                        clients = clients
+                    };
+
+                    TempData["Permission"] = "";
+                    return View(categoryItemViewModel);
+                }
+                else
+                {
+                    TempData["Permission"] = "You do not have permission to access this page";
+                    return View();
+                }
             }
             else
             {
@@ -68,352 +87,601 @@ namespace Fastfood.Controllers
         public IActionResult FilterItems(int categoryId)
         {
             TempData["UserName"] = HttpContext.Session.GetString("UserName");
-            var _items = db.items;
-            IEnumerable<Item> data = _items.Where(item => item.CategoryId == categoryId).ToList();
-
+            var data = db.items.Where(item => item.CategoryId == categoryId).ToList();
             return Json(data);
         }
 
         public IActionResult FilterItemsByItemId(int itemId)
         {
             TempData["UserName"] = HttpContext.Session.GetString("UserName");
-            // Filter items based on the itemId
-            var _items = db.items;
-
-            var filteredItems = _items.Where(item => item.ItemId == itemId).ToList();
-
-            // Return filtered items as JSON data
+            var filteredItems = db.items.Where(item => item.ItemId == itemId).ToList();
             return Json(filteredItems);
         }
 
         public IActionResult FilterItemsByRemarks(string remarks)
         {
             TempData["UserName"] = HttpContext.Session.GetString("UserName");
-            // Filter items based on the itemId
-            var _items = db.items;
-            //var filteredItems = _items.Where(item => item.ItemId == itemId).ToList();
-            var filteredPizzaRemarks = _items.Where(item => item.Remarks == remarks).ToList();
-
-            //var filteredItems = 1;
-            // Return filtered items as JSON data
+            var filteredPizzaRemarks = db.items.Where(item => item.Remarks == remarks).ToList();
             return Json(filteredPizzaRemarks);
+        }
+
+        [HttpPost]
+        public IActionResult DeleteSale(int id)
+        {
+            TempData["UserName"] = HttpContext.Session.GetString("UserName");
+
+            if (HttpContext.Session.GetString("flag") != "true")
+                return RedirectToAction("Login", "ControlPanel");
+
+            var methodName = "DeleteSale";
+            var usercode = HttpContext.Session.GetString("UserCode");
+
+            bool permission = db.userPermissions.Where(u => u.UserCode.ToString() == usercode && u.MethodName == methodName)
+                                               .Select(u => u.View)
+                                               .FirstOrDefault();
+
+            if (!permission)
+                return RedirectToAction(nameof(AccessDenied));
+
+            var sale = db.sales.FirstOrDefault(s => s.SaleId == id);
+            if (sale == null)
+            {
+                TempData["ToastType"] = "error";
+                TempData["ToastMessage"] = "Sale not found.";
+                return RedirectToAction(nameof(SalesIndex));
+            }
+
+            var soldItems = db.soldItems.Where(si => si.SaleId == id).ToList();
+
+            // Restore stock for beverages (create Purchase-like +Qty entries to reverse)
+            foreach (var item in soldItems)
+            {
+                var dbItem = db.items.FirstOrDefault(i => i.ItemId == item.ItemId);
+                if (dbItem != null && dbItem.ItemType == "Beverages")
+                {
+                    db.StockTracking.Add(new StockTracking
+                    {
+                        TrsID = sale.SaleId,
+                        TrsDate = DateTime.Now,
+                        ItemId = item.ItemId,
+                        Qty = item.Qty,
+                        Source = "Sale-Delete",
+                        Price = item.UnitPrice,
+                        ItemName = item.ItemName,
+                        UnitId = db.items.Where(it => it.ItemId == item.ItemId).Select(it => it.CategoryId).FirstOrDefault() // optional fallback; change if your item has UnitId
+                    });
+                }
+            }
+
+            // remove sold items and sale
+            db.soldItems.RemoveRange(soldItems);
+            db.sales.Remove(sale);
+            db.SaveChanges();
+
+            TempData["ToastType"] = "success";
+            TempData["ToastMessage"] = "Sale has been deleted successfully.";
+            return RedirectToAction(nameof(BillsHistory));
         }
 
         [HttpPost]
         public IActionResult SaveBillDetail(CategoryItemVM items)
         {
-			TempData["UserName"] = HttpContext.Session.GetString("UserName");
-			if (HttpContext.Session.GetString("flag") == "true")
-			{
-				
-				var methodName = "SaveBillDetail";
-				var usercode = HttpContext.Session.GetString("UserCode");
+            TempData["UserName"] = HttpContext.Session.GetString("UserName");
+            var username = HttpContext.Session.GetString("UserName");
 
-				bool permission = db.userPermissions.Where(u => u.UserCode.ToString() == usercode && u.MethodName == methodName).Select(u => u.View).FirstOrDefault();
-				if (permission)
-				{
-					Sales sale = new();
-					sale.SaleDate = System.DateTime.Now;
-					sale.Payment = items.FinalBillTotal;
-					sale.Status = items.PaymentMethod;
-					sale.Cash_Received = items.CashReceived;
-					sale.Paid_Back = items.CashPayBack;
-					sale.Serving = items.DeliveryMethod;
-					db.sales.Add(sale);
-					db.SaveChanges();
-					int lastRecordId = db.sales
-											 .OrderBy(e => e.SaleId)
-											 .Select(e => e.SaleId)
-											 .LastOrDefault();
-					foreach (var item in items.DynamicData)
-					{
-						SoldItems saleditem = new();
-						saleditem.SaleId = lastRecordId;
-						saleditem.ItemId = int.Parse(item.ItemId);
-						saleditem.ItemName = item.ItemName;
-						saleditem.Qty = int.Parse(item.Quantity);
-						saleditem.UnitPrice = int.Parse(item.Price);
-						saleditem.Discount = int.Parse(item.Discount);
-						saleditem.NetPrice = item.NetTotal;
-						db.soldItems.Add(saleditem);
-						db.SaveChanges();
-					}
-					return RedirectToAction(nameof(SalesIndex));
-				}
-				else
-				{
-					return RedirectToAction(nameof(AccessDenied));
-				}
-			}
-			else
-			{
-				return RedirectToAction("Login", "ControlPanel");
-			}
-			 
+            if (HttpContext.Session.GetString("flag") != "true")
+                return RedirectToAction("Login", "ControlPanel");
+
+            // permission
+            var methodName = "SaveBillDetail";
+            var usercode = HttpContext.Session.GetString("UserCode");
+
+            bool permission = db.userPermissions
+                .Where(u => u.UserCode.ToString() == usercode && u.MethodName == methodName)
+                .Select(u => u.View)
+                .FirstOrDefault();
+
+            if (!permission)
+                return RedirectToAction(nameof(AccessDenied));
+
+            // --- Save main Sale record ---
+            var sale = new Sales
+            {
+                SaleDate = DateTime.Now,
+                Payment = items.FinalBillTotal,
+                Status = items.PaymentMethod,
+                Cash_Received = items.CashReceived,
+                Paid_Back = items.CashPayBack,
+                Serving = items.DeliveryMethod,
+                Modifier = username,
+                LastModified = DateTime.Now,
+                DealingPerson = username
+            };
+
+            db.sales.Add(sale);
+            db.SaveChanges();
+
+            int lastRecordId = sale.SaleId;
+
+            // --- Save sold items and deduct stock ---
+            foreach (var item in items.DynamicData)
+            {
+                var soldItem = new SoldItems
+                {
+                    SaleId = lastRecordId,
+                    ItemId = int.Parse(item.ItemId),
+                    ItemName = item.ItemName,
+                    Qty = int.Parse(item.Quantity),
+                    UnitPrice = int.Parse(item.Price),
+                    Discount = int.Parse(item.Discount),
+                    NetPrice = item.NetTotal
+                };
+
+                db.soldItems.Add(soldItem);
+
+                // Deduct finished product itself (if tracked as inventory)
+                var dbItem = db.items.FirstOrDefault(i => i.ItemId == soldItem.ItemId);
+                if (dbItem != null && dbItem.ItemType == "Beverages")
+                {
+                    db.StockTracking.Add(new StockTracking
+                    {
+                        TrsID = sale.SaleId,
+                        TrsDate = sale.SaleDate,
+                        ItemId = soldItem.ItemId,
+                        Qty = soldItem.Qty,   // positive; queries treat non-Purchase as deduction
+                        Source = "Sale",
+                        Price = soldItem.UnitPrice,
+                        ItemName = soldItem.ItemName,
+                        UnitId = db.items.Where(it => it.ItemId == soldItem.ItemId)
+                                         .Select(it => it.CategoryId) // <-- replace with real UnitId if items table has it
+                                         .FirstOrDefault()
+                    });
+                }
+
+                // Deduct raw materials (ingredients)
+                DeductIngredientsForProduct(soldItem.ItemId, soldItem.Qty, sale.SaleId);
+            }
+
+            db.SaveChanges();
+
+            TempData["ToastType"] = "success";
+            TempData["ToastMessage"] = "Order has been added successfully.";
+            return RedirectToAction(nameof(SalesIndex));
         }
+
+        // Convert units helper (expand as needed)
+        public decimal ConvertUnits(decimal qty, string fromUnit, string toUnit)
+        {
+            if (string.Equals(fromUnit, toUnit, StringComparison.OrdinalIgnoreCase))
+                return qty;
+
+            // weight conversions
+            if (fromUnit.Equals("KG", StringComparison.OrdinalIgnoreCase) &&
+                toUnit.Equals("Grams", StringComparison.OrdinalIgnoreCase))
+                return qty * 1000m;
+
+            if (fromUnit.Equals("Grams", StringComparison.OrdinalIgnoreCase) &&
+                toUnit.Equals("KG", StringComparison.OrdinalIgnoreCase))
+                return qty / 1000m;
+
+            // volume conversions
+            if (fromUnit.Equals("Liter", StringComparison.OrdinalIgnoreCase) &&
+                toUnit.Equals("ml", StringComparison.OrdinalIgnoreCase))
+                return qty * 1000m;
+
+            if (fromUnit.Equals("ml", StringComparison.OrdinalIgnoreCase) &&
+                toUnit.Equals("Liter", StringComparison.OrdinalIgnoreCase))
+                return qty / 1000m;
+
+            // default fallback (1:1)
+            return qty;
+        }
+
+        private void DeductIngredientsForProduct(int productId, int quantitySold, int saleId)
+        {
+            var recipeItems = db.RawMaterial_Items_Consumption
+                .Where(r => r.BInv_ItemId == productId)
+                .ToList();
+
+            foreach (var recipe in recipeItems)
+            {
+                if (recipe.RMInv_ItemId == null || recipe.RMQTY <= 0)
+                    continue;
+
+                decimal totalBaseConsumption = recipe.RMQTY * quantitySold; // e.g. 4 burgers * 50g = 200g
+
+                var raw = db.Consumeables.FirstOrDefault(c => c.CMID == recipe.RMInv_ItemId);
+                if (raw == null) continue;
+
+                decimal packWeight = raw.PackWeight ?? 0;
+                if (packWeight <= 0) continue; // Prevent wrong calculations
+
+                // ✅ Unit Conversion Logic
+                decimal adjustedUsage = ConvertToBaseUnit(totalBaseConsumption, raw.UnitId);
+
+                // ✅ Convert to packs to deduct
+                decimal packsToDeduct = adjustedUsage / packWeight;
+                if (packsToDeduct <= 0) continue;
+
+                // ✅ Insert into StockTracking (deduct)
+                var stockEntry = new StockTracking
+                {
+                    TrsID = saleId,
+                    TrsDate = DateTime.Now,
+                    ItemId = raw.CMID,
+                    Qty = packsToDeduct,
+                    UnitId = raw.UnitId,
+                    Source = "Consumption",
+                    ItemName = recipe.RMItemName ?? raw.CMName,
+                };
+
+                db.StockTracking.Add(stockEntry);
+            }
+
+            db.SaveChanges();
+        }
+
+        // ✅ Universal Conversion Function
+        private decimal ConvertToBaseUnit(decimal value, int? unitId)
+        {
+            switch (unitId)
+            {
+                case 1: // Kilogram → Grams
+                    return value * 1000;
+                case 2: // Grams
+                    return value;
+                case 5: // Litre → ml
+                    return value * 1000;
+                case 23: // ml
+                    return value;
+                case 4: // Dozen → Pieces
+                    return value * 12;
+                case 6: // Numbers (Nos)
+                case 7: // Pieces (PCS)
+                case 8: // Packets (PKT)
+                case 16: // Pack
+                    return value; // Direct piece deduction
+                default:
+                    return value; // Fallback - no conversion
+            }
+        }
+
+
+
+
+
+        // Try to infer unit code from a name like "Chicken 100gm" or "Sugar 1kg"
+        private string InferUnitCodeFromName(string? name)
+        {
+            if (string.IsNullOrWhiteSpace(name)) return null;
+
+            var m = System.Text.RegularExpressions.Regex.Match(name, @"(\d+)\s*(g|gm|kg|kg\.)", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+            if (m.Success)
+            {
+                string unit = m.Groups[2].Value.ToLower();
+                if (unit.StartsWith("g")) return "Grams";
+                if (unit.StartsWith("kg")) return "KG";
+            }
+
+            // check ml
+            m = System.Text.RegularExpressions.Regex.Match(name, @"(\d+)\s*(ml|milliliter)", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+            if (m.Success) return "ml";
+
+            // fallback: try to find a UnitPrice entry that matches a word in name
+            var allUnits = db.UnitPrices.ToList();
+            foreach (var u in allUnits)
+            {
+                if (!string.IsNullOrWhiteSpace(u.UnitCode) && name.IndexOf(u.UnitCode, StringComparison.OrdinalIgnoreCase) >= 0)
+                    return u.UnitCode;
+                if (!string.IsNullOrWhiteSpace(u.UnitName) && name.IndexOf(u.UnitName, StringComparison.OrdinalIgnoreCase) >= 0)
+                    return u.UnitCode;
+            }
+
+            return null;
+        }
+
+        // ... rest of your controller methods (BankDetail, CreateCustomer, BillsHistory, UpdateBill, Print, etc.)
+        // (unchanged — omitted here for brevity)
+ 
+
+
         [HttpGet]
         public IActionResult BankDetail(int Bin)
         {
             TempData["UserName"] = HttpContext.Session.GetString("UserName");
 
-			if (HttpContext.Session.GetString("flag") == "true")
-			{
-				var methodName = "BankDetail";
-				var usercode = HttpContext.Session.GetString("UserCode");
+            if (HttpContext.Session.GetString("flag") == "true")
+            {
+                var methodName = "BankDetail";
+                var usercode = HttpContext.Session.GetString("UserCode");
 
-				bool permission = db.userPermissions.Where(u => u.UserCode.ToString() == usercode && u.MethodName == methodName).Select(u => u.View).FirstOrDefault();
-				if (permission)
-				{
-					var banksattlement = db.bankSattlements;
+                bool permission = db.userPermissions.Where(u => u.UserCode.ToString() == usercode && u.MethodName == methodName).Select(u => u.View).FirstOrDefault();
+                if (permission)
+                {
+                    var banksattlement = db.bankSattlements;
 
-					var specificbankdetail = banksattlement.Where(x => x.BIN == Bin).FirstOrDefault();
+                    var specificbankdetail = banksattlement.Where(x => x.BIN == Bin).FirstOrDefault();
 
-					return Json(specificbankdetail);
-				}
-				else
-				{
-					return RedirectToAction(nameof(AccessDenied));
-				}
-			}
-			else
-			{
-				return RedirectToAction("Login", "ControlPanel");
-			}
+                    return Json(specificbankdetail);
+                }
+                else
+                {
+                    return RedirectToAction(nameof(AccessDenied));
+                }
+            }
+            else
+            {
+                return RedirectToAction("Login", "ControlPanel");
+            }
 
-			
-			
+
+
         }
         [HttpPost]
         public IActionResult CreateCustomer(string CustomerName)
         {
             TempData["UserName"] = HttpContext.Session.GetString("UserName");
 
-			if (HttpContext.Session.GetString("flag") == "true")
-			{
-				var methodName = "CreateCustomer";
-				var usercode = HttpContext.Session.GetString("UserCode");
+            if (HttpContext.Session.GetString("flag") == "true")
+            {
+                var methodName = "CreateCustomer";
+                var usercode = HttpContext.Session.GetString("UserCode");
 
-				bool permission = db.userPermissions.Where(u => u.UserCode.ToString() == usercode && u.MethodName == methodName).Select(u => u.View).FirstOrDefault();
-				if (permission)
-				{
-					decimal lastRecordId = db.clients
-										 .OrderBy(e => e.Clientid)
-										 .Select(e => e.Clientid)
-										 .LastOrDefault();
-					Client newcustomer = new();
-					newcustomer.Clientid = lastRecordId + 1;
-					newcustomer.Name = CustomerName;
-					db.clients.Add(newcustomer);
-					db.SaveChanges();
-					return RedirectToAction(nameof(SalesIndex));
-				}
-				else
-				{
-					return RedirectToAction(nameof(AccessDenied));
-				}
-			}
-			else
-			{
-				return RedirectToAction("Login", "ControlPanel");
-			}
+                bool permission = db.userPermissions.Where(u => u.UserCode.ToString() == usercode && u.MethodName == methodName).Select(u => u.View).FirstOrDefault();
+                if (permission)
+                {
+                    decimal lastRecordId = db.clients
+                                         .OrderBy(e => e.Clientid)
+                                         .Select(e => e.Clientid)
+                                         .LastOrDefault();
+                    Client newcustomer = new();
+                    newcustomer.Clientid = lastRecordId + 1;
+                    newcustomer.Name = CustomerName;
+                    db.clients.Add(newcustomer);
+                    db.SaveChanges();
+                    return RedirectToAction(nameof(SalesIndex));
+                }
+                else
+                {
+                    return RedirectToAction(nameof(AccessDenied));
+                }
+            }
+            else
+            {
+                return RedirectToAction("Login", "ControlPanel");
+            }
 
-			
-			
+
+
         }
 
         public IActionResult BillsHistory()
         {
             TempData["UserName"] = HttpContext.Session.GetString("UserName");
 
-			if (HttpContext.Session.GetString("flag") == "true")
-			{
-				var methodName = "BillsHistory";
-				var usercode = HttpContext.Session.GetString("UserCode");
+            if (HttpContext.Session.GetString("flag") == "true")
+            {
+                var methodName = "BillsHistory";
+                var usercode = HttpContext.Session.GetString("UserCode");
 
-				bool permission = db.userPermissions.Where(u => u.UserCode.ToString() == usercode && u.MethodName == methodName).Select(u => u.View).FirstOrDefault();
-				if (permission)
-				{
-					var last500Records = db.sales
-									.OrderByDescending(e => e.SaleId)
-									.Take(500)
-									.ToList();
+                bool permission = db.userPermissions.Where(u => u.UserCode.ToString() == usercode && u.MethodName == methodName).Select(u => u.View).FirstOrDefault();
+                if (permission)
+                {
+                    var last500Records = db.sales
+                                    .OrderByDescending(e => e.SaleId)
+                                    .Take(500)
+                                    .ToList();
 
-					TempData["Permission"] = "";
-					return View(last500Records);
-				}
-				else
-				{
-					TempData["Permission"] = "You do not have permission to access this page";
-					return View();
-				}
-			}
-			else
-			{
-				return RedirectToAction("Login", "ControlPanel");
-			}
+                    TempData["Permission"] = "";
+                    return View(last500Records);
+                }
+                else
+                {
+                    TempData["Permission"] = "You do not have permission to access this page";
+                    return View();
+                }
+            }
+            else
+            {
+                return RedirectToAction("Login", "ControlPanel");
+            }
 
-			
-			
+
+
         }
 
         public IActionResult UpdateBill(int Id)
         {
             TempData["UserName"] = HttpContext.Session.GetString("UserName");
 
-			if (HttpContext.Session.GetString("flag") == "true")
-			{
-				var methodName = "UpdateBill";
-				var usercode = HttpContext.Session.GetString("UserCode");
+            if (HttpContext.Session.GetString("flag") == "true")
+            {
+                var methodName = "UpdateBill";
+                var usercode = HttpContext.Session.GetString("UserCode");
 
-				bool permission = db.userPermissions.Where(u => u.UserCode.ToString() == usercode && u.MethodName == methodName).Select(u => u.View).FirstOrDefault();
-				if (permission)
-				{
-					CategoryItemVM catitem = new();
-					var categories = db.categories.ToList();
-					List<Category> list = new List<Category>();
-					List<SaledItems> DynamicData = new List<SaledItems>();
-					list = categories;
-					catitem.category = list;
-					//catitem.DynamicData = DynamicData;
+                bool permission = db.userPermissions.Where(u => u.UserCode.ToString() == usercode && u.MethodName == methodName).Select(u => u.View).FirstOrDefault();
+                if (permission)
+                {
+                    CategoryItemVM catitem = new();
+                    var categories = db.categories.ToList();
+                    List<Category> list = new List<Category>();
+                    List<SaledItems> DynamicData = new List<SaledItems>();
+                    list = categories;
+                    catitem.category = list;
+                    //catitem.DynamicData = DynamicData;
 
-					var sales = db.sales.FirstOrDefault(r => r.SaleId == Id);
-					if (sales != null)
-					{
-						catitem.PaymentMethod = sales.Status;
-						catitem.DeliveryMethod = sales.Serving;
-						catitem.FinalBillTotal = sales.Payment;
-						catitem.CashReceived = sales.Cash_Received;
-						catitem.CashPayBack = sales.Paid_Back;
-					}
+                    var sales = db.sales.FirstOrDefault(r => r.SaleId == Id);
+                    if (sales != null)
+                    {
+                        catitem.PaymentMethod = sales.Status;
+                        catitem.DeliveryMethod = sales.Serving;
+                        catitem.FinalBillTotal = sales.Payment;
+                        catitem.CashReceived = sales.Cash_Received;
+                        catitem.CashPayBack = sales.Paid_Back;
 
-					var solditems = db.soldItems.Where(e => e.SaleId == Id).ToList();
+                    }
 
-					foreach (var item in solditems)
-					{
-						SaledItems sold = new();
-						sold.ItemId = item.ItemId.ToString();
-						sold.ItemName = item.ItemName;
-						sold.Price = item.UnitPrice.ToString();
-						sold.Quantity = item.Qty.ToString();
-						sold.Discount = item.Discount.ToString();
-						sold.NetTotal = item.NetPrice;
+                    var solditems = db.soldItems.Where(e => e.SaleId == Id).ToList();
 
-						DynamicData.Add(sold);
-					}
+                    foreach (var item in solditems)
+                    {
+                        SaledItems sold = new();
+                        sold.ItemId = item.ItemId.ToString();
+                        sold.ItemName = item.ItemName;
+                        sold.Price = item.UnitPrice.ToString();
+                        sold.Quantity = item.Qty.ToString();
+                        sold.Discount = item.Discount.ToString();
+                        sold.NetTotal = item.NetPrice;
 
-					catitem.DynamicData = DynamicData;
-					catitem.IDforUpdateRecord = Id;
-					TempData["Permission"] = "";
-					return View(catitem);
+                        DynamicData.Add(sold);
+                    }
+
+                    catitem.DynamicData = DynamicData;
+                    catitem.IDforUpdateRecord = Id;
+                    TempData["Permission"] = "";
+                    return View(catitem);
 
 
-				}
-				else
-				{
-					TempData["Permission"] = "You do not have permission to access this page";
-					return View();
-				}
-			}
-			else
-			{
-				return RedirectToAction("Login", "ControlPanel");
-			}
+                }
+                else
+                {
+                    TempData["Permission"] = "You do not have permission to access this page";
+                    return View();
+                }
+            }
+            else
+            {
+                return RedirectToAction("Login", "ControlPanel");
+            }
 
-			
-			
+
+
         }
         [HttpPost]
         public IActionResult UpdateBill(CategoryItemVM editbill)
         {
             TempData["UserName"] = HttpContext.Session.GetString("UserName");
+            var username = HttpContext.Session.GetString("UserName");
 
-			if (HttpContext.Session.GetString("flag") == "true")
-			{
-				var RecordtoUpdate = editbill.IDforUpdateRecord;
+            if (HttpContext.Session.GetString("flag") == "true")
+            {
+                var recordId = editbill.IDforUpdateRecord;
 
-				Sales sale = new();
-				sale.SaleId = (int)RecordtoUpdate;
-				sale.LastModified = System.DateTime.Now;
-				sale.Payment = editbill.FinalBillTotal;
-				sale.Status = editbill.PaymentMethod;
-				sale.Cash_Received = editbill.CashReceived;
-				sale.Paid_Back = editbill.CashPayBack;
-				sale.Serving = editbill.DeliveryMethod;
-				db.sales.Update(sale);
-				db.SaveChanges();
+                // 🔹 Fetch existing sale
+                var sale = db.sales.FirstOrDefault(s => s.SaleId == recordId);
+                if (sale != null)
+                {
+                    // --- Main Sale Fields ---
+                    sale.Payment = editbill.FinalBillTotal;
+                    sale.Status = editbill.PaymentMethod;
+                    sale.Cash_Received = editbill.CashReceived;
+                    sale.Paid_Back = editbill.CashPayBack;
+                    sale.Serving = editbill.DeliveryMethod;
+                    sale.SaleDate = DateTime.Now;
 
-				var recordstodelete = db.soldItems.Where(e => e.SaleId == RecordtoUpdate).ToList();
+                    // --- Audit & user fields ---
+                    sale.LastModified = DateTime.Now;
+                    sale.Modifier = username;
+                    sale.DealingPerson = username;
 
-				db.soldItems.RemoveRange(recordstodelete);
-				db.SaveChanges();
+                    // (Optional) If you want to allow changing SaleDate too
+                    // sale.SaleDate = DateTime.Now;  // or from editbill if you add that field
 
-				//int lastRecordId = db.sales
-				//                         .OrderBy(e => e.SaleId)
-				//                         .Select(e => e.SaleId)
-				//                         .LastOrDefault();
-				foreach (var item in editbill.DynamicData)
-				{
-					SoldItems saleditem = new();
-					saleditem.SaleId = (int)RecordtoUpdate;
-					saleditem.ItemId = int.Parse(item.ItemId);
-					saleditem.ItemName = item.ItemName;
-					saleditem.Qty = int.Parse(item.Quantity);
-					saleditem.UnitPrice = int.Parse(item.Price);
-					saleditem.Discount = int.Parse(item.Discount);
-					saleditem.NetPrice = item.NetTotal;
-					db.soldItems.Add(saleditem);
-					db.SaveChanges();
-				}
+                    db.sales.Update(sale);
+                    db.SaveChanges();
+                }
 
-				//var lastrecordtoupdate = db.sales.OrderBy(e => e.SaleId).Select(e => e.SaleId).LastOrDefault();
-				return RedirectToAction(nameof(BillsHistory));
-			}
-			else
-			{
-				return RedirectToAction("Login", "ControlPanel");
-			}
+                // --- Reset sold items ---
+                var recordstodelete = db.soldItems.Where(e => e.SaleId == recordId).ToList();
+                db.soldItems.RemoveRange(recordstodelete);
+                db.SaveChanges();
 
-			
+                // --- Insert updated sold items ---
+                foreach (var item in editbill.DynamicData)
+                {
+                    SoldItems saleditem = new()
+                    {
+                        SaleId = (int)recordId,
+                        ItemId = int.Parse(item.ItemId),
+                        ItemName = item.ItemName,
+                        Qty = int.Parse(item.Quantity),
+                        UnitPrice = int.Parse(item.Price),
+                        Discount = int.Parse(item.Discount),
+                        NetPrice = item.NetTotal
+                    };
+                    db.soldItems.Add(saleditem);
+
+                    // 🔹 If you want same stock update logic as in SaveBillDetail:
+                    var dbItem = db.items.FirstOrDefault(i => i.ItemId == saleditem.ItemId);
+                    if (dbItem != null && dbItem.ItemType == "Beverages")
+                    {
+                        var stock = new StockTracking
+                        {
+                            TrsID = sale.SaleId,
+                            TrsDate = DateTime.Now,
+                            ItemId = saleditem.ItemId,
+                            Qty = saleditem.Qty,
+                            Source = "Sale-Update",
+                            Price = saleditem.UnitPrice,
+                            ItemName = saleditem.ItemName
+                        };
+
+                        db.StockTracking.Add(stock);
+                    }
+                }
+
+                db.SaveChanges();
+
+                TempData["ToastType"] = "success";
+                TempData["ToastMessage"] = "Order has been updated successfully.";
+                return RedirectToAction(nameof(BillsHistory));
+            }
+            else
+            {
+                return RedirectToAction("Login", "ControlPanel");
+            }
         }
+
+
         public IActionResult Print(int Id)
         {
             TempData["UserName"] = HttpContext.Session.GetString("UserName");
 
-			if (HttpContext.Session.GetString("flag") == "true")
-			{
-				var methodName = "Print";
-				var usercode = HttpContext.Session.GetString("UserCode");
+            if (HttpContext.Session.GetString("flag") == "true")
+            {
+                var methodName = "Print";
+                var usercode = HttpContext.Session.GetString("UserCode");
 
-				bool permission = db.userPermissions.Where(u => u.UserCode.ToString() == usercode && u.MethodName == methodName).Select(u => u.View).FirstOrDefault();
-				if (permission)
-				{
-					var sales = db.soldItems.Where(i => i.SaleId == Id).ToList();
-					var InvoiceNo = Id.ToString();
+                bool permission = db.userPermissions.Where(u => u.UserCode.ToString() == usercode && u.MethodName == methodName).Select(u => u.View).FirstOrDefault();
+                if (permission)
+                {
+                    var sales = db.soldItems.Where(i => i.SaleId == Id).ToList();
+                    var InvoiceNo = Id.ToString();
 
 
-					string mimType = "";
-					int extension = 1;
-					var path = $"{this.env.WebRootPath}/Reports/Report.rdlc";
-					Dictionary<string, string> parameter = new Dictionary<string, string>();
-					parameter.Add("Parameter1", "Welcome to the Sales Invoice Receipt");
-					parameter.Add("InvoiceNo", InvoiceNo);
-					parameter.Add("InvoiceName", "InvoiceNo");
-					LocalReport localreport = new LocalReport(path);
-					localreport.AddDataSource("DataSet", sales);
-					var result = localreport.Execute(RenderType.Pdf, extension, parameter, mimType);
-					return File(result.MainStream, "application/pdf");
-				}
-				else
-				{
-					return RedirectToAction(nameof(AccessDenied));
-				}
-			}
-			else
-			{
-				return RedirectToAction("Login", "ControlPanel");
-			}
-			
+                    string mimType = "";
+                    int extension = 1;
+                    var path = $"{this.env.WebRootPath}/Reports/Report.rdlc";
+                    Dictionary<string, string> parameter = new Dictionary<string, string>();
+                    parameter.Add("Parameter1", "Welcome to the Sales Invoice Receipt");
+                    parameter.Add("InvoiceNo", InvoiceNo);
+                    parameter.Add("InvoiceName", "InvoiceNo");
+                    LocalReport localreport = new LocalReport(path);
+                    localreport.AddDataSource("DataSet", sales);
+                    var result = localreport.Execute(RenderType.Pdf, extension, parameter, mimType);
+                    return File(result.MainStream, "application/pdf");
+                }
+                else
+                {
+                    return RedirectToAction(nameof(AccessDenied));
+                }
+            }
+            else
+            {
+                return RedirectToAction("Login", "ControlPanel");
+            }
 
-		}
+
+        }
     }
 }

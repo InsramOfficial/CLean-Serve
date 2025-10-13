@@ -24,106 +24,107 @@ else
 
     <!DOCTYPE html>
     <html lang="en">
-
     <head>
         <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
-        <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
         <title>Update User</title>
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
         <style>
             body {
-                background: #F4F6FA; /* Light background color */
-                color: #3EADFA; /* Text color */
+                background-color: #F4F6FA;
                 display: flex;
-                align-items: center;
                 justify-content: center;
+                align-items: center;
                 height: 100vh;
-                margin-top: 0px;
-                margin-bottom: 0px;
+                margin: 0;
             }
 
-            .background {
-                border: 1px solid #3EADFA; /* Border color */
-                background: #FFFFFF; /* Form background color */
-                padding: 40px;
-                border-radius: 8px;
-                box-shadow: 0 0 10px rgba(0, 0, 0, 0.1); /* Subtle box shadow */
+            .card-custom {
+                width: 100%;
+                max-width: 600px;
+                padding: 30px;
+                background: #fff;
+                border-radius: 10px;
+                box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+                font-family: 'Segoe UI', sans-serif;
             }
 
-            button {
-                float: right;
-                background-color: #3EADFA; /* Button background color */
-                color: #FFFFFF; /* Button text color */
-                border: 1px solid #3EADFA; /* Button border color */
-                border-radius: 4px;
-                padding: 10px 20px;
-                cursor: pointer;
+            .form-control {
+                border-radius: 6px;
             }
 
-                /* Hover effect for the button */
-                button:hover {
-                    background-color: #1F75C1; /* Darker blue on hover */
-                    border-color: #1F75C1;
+            .btn-custom {
+                background-color: #3EADFA;
+                color: white;
+                border: none;
+            }
+
+                .btn-custom:hover {
+                    background-color: #1F75C1;
                 }
+
+            .header-img {
+                display: block;
+                margin: 0 auto 20px;
+                max-height: 100px;
+            }
+
+            .form-title {
+                font-size: 24px;
+                font-weight: bold;
+                margin-bottom: 20px;
+                text-align: center;
+            }
+
+            .btn-back a {
+                color: white;
+                text-decoration: none;
+            }
+
+            .btn-back:hover a {
+                color: white;
+            }
         </style>
     </head>
-
     <body>
-
-        <div class="container">
-            <div class="row">
-                <div class="col-md-12"></div>
-                <div class="col-md-12 background">
-                    <form method="post" asp-action="EditUser" asp-controller="ControlPanel">
-                        <h2 class="text-center">Update User</h2>
-                        <hr>
-                        <table>
-                            <tr>
-                                <td>
-                                    <div class="form-group">
-                                        <label asp-for="ID">User ID:</label>
-                                        <input asp-for="ID" type="text" class="form-control" placeholder="Enter Item Name">
-                                        <input asp-for="UserCode" type="hidden" />
-                                    </div>
-                                </td>
-                                <td>
-                                    <div class="form-group">
-                                        <label asp-for="Password">Password:</label>
-                                        <input asp-for="Password" type="text" class="form-control" placeholder="Enter Item Unit Price">
-                                    </div>
-                                </td>
-                            </tr>
-                            <tr>
-                                <td>
-                                    <div class="form-group">
-                                        <label asp-for="Name">User Name:</label>
-                                        <input asp-for="Name" type="text" class="form-control" placeholder="Enter Item Discount">
-                                    </div>
-                                </td>
-                                <td>
-                                    <div class="form-group">
-                                        <label>Access:</label>
-                                        <select asp-for="Access" class="form-control">
-                                            <option class="form-control">---Select---</option>
-                                            <option class="form-control" value="Admin">Admin</option>
-                                            <option class="form-control" value="User">User</option>
-                                            <option class="form-control" value="Employee">Employee</option>
-                                        </select>
-                                    </div>
-                                </td>
-                            </tr>
-                        </table>
-                        <hr>
-                        <button class="btn btn-secondary"><a style="color:white;" asp-action="UserList" asp-controller="ControlPanel">Back</a></button>
-                        <button type="submit" class="btn btn-success mr-2">Update</button>
-                    </form>
+        <div class="card-custom">
+            <img src="~/images/user.png" alt="User Icon" class="header-img" />
+            <div class="form-title">Update User</div>
+            <form method="post" asp-action="EditUser" asp-controller="ControlPanel">
+                <div class="form-row">
+                    <div class="form-group col-md-6">
+                        <label asp-for="ID">User ID</label>
+                        <input asp-for="ID" class="form-control" placeholder="Enter User ID">
+                        <input asp-for="UserCode" type="hidden" />
+                    </div>
+                    <div class="form-group col-md-6">
+                        <label asp-for="Password">Password</label>
+                        <input asp-for="Password" class="form-control" placeholder="Enter Password">
+                    </div>
                 </div>
-                <div class="col-md-12"></div>
-            </div>
+                <div class="form-row">
+                    <div class="form-group col-md-6">
+                        <label asp-for="Name">User Name</label>
+                        <input asp-for="Name" class="form-control" placeholder="Enter Name">
+                    </div>
+                    <div class="form-group col-md-6">
+                        <label asp-for="Access">Access</label>
+                        <select asp-for="Access" class="form-control">
+                            <option value="">---Select---</option>
+                            <option value="Admin">Admin</option>
+                            <option value="User">User</option>
+                            <option value="Employee">Employee</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="d-flex justify-content-between mt-4">
+                    <button class="btn btn-secondary btn-back">
+                        <a asp-action="UserList" asp-controller="ControlPanel">Back</a>
+                    </button>
+                    <button type="submit" class="btn btn-custom">Update</button>
+                </div>
+            </form>
         </div>
     </body>
     </html>
 }
-
-
-

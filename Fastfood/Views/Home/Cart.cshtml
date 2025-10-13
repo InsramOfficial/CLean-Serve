@@ -1,7 +1,5 @@
 ﻿@model List<Fastfood.ViewModel.ItemsVM>
-@{
-    Layout = null;
-}
+ 
 @{
 
     var ToastMessage = TempData["ToastMessage"] as string;
@@ -24,10 +22,7 @@
 
     <style>
          
-        body{
-            background-color: #F8F8F8;
-            margin-top:40px;
-        }
+        
         .avatar-lg {
             height: 5rem;
             width: 5rem;
@@ -109,13 +104,13 @@
                                     </div>
                                 </div>
                               <div class="flex-shrink-0 ms-2">
-    <form asp-action="DeleteFromCart" asp-controller="Home" method="post" style="display:inline;">
-        <input type="hidden" name="id" value="@item.ItemId" />
-        <button type="submit" class="btn btn-sm text-danger px-1" style="border: none; background: none;">
-            <i class="mdi mdi-trash-can-outline"></i>
-        </button>
-    </form>
-</div>
+                                <form asp-action="DeleteFromCart" asp-controller="Home" method="post" style="display:inline;">
+                                    <input type="hidden" name="id" value="@item.ItemId" />
+                                    <button type="submit" class="btn btn-sm text-danger px-1" style="border: none; background: none;">
+                                        <i class="mdi mdi-trash-can-outline"></i>
+                                    </button>
+                                </form>
+                            </div>
 
                             </div>
 
@@ -169,9 +164,13 @@
                     <div class="col-sm-6">
                         <div class="text-sm-end mt-2 mt-sm-0">
                             <h5>Total bill @totalbill</h5>
-                            <a asp-action="Checkout" asp-controller="Home" class="btn btn-success">
-                                <i class="mdi mdi-cart-outline me-1"></i> Checkout
-                            </a>
+                            <form asp-action="Checkout" asp-controller="Home" method="post" class="d-inline">
+                                @Html.AntiForgeryToken()
+                                <button type="submit" class="btn btn-success">
+                                    <i class="mdi mdi-cart-outline me-1"></i> Checkout
+                                </button>
+                            </form>
+
 
                         </div>
                     </div> <!-- end col -->

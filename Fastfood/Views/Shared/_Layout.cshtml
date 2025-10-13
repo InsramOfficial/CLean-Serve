@@ -1,384 +1,381 @@
-﻿
+﻿@{
+    var notificationCount = ViewBag.NotificationCount ?? 0;
+    var lowStockNotifications = ViewBag.LowStockNotifications as IEnumerable<dynamic> ?? Enumerable.Empty<dynamic>();
+}
+@{
+    var currentController = ViewContext.RouteData.Values["controller"]?.ToString();
+    var currentAction = ViewContext.RouteData.Values["action"]?.ToString();
+}
 
-<!DOCTYPE html>
-<html lang="en">
+ <!DOCTYPE html> 
 
 <head>
-  <meta charset="utf-8">
-  <meta content="width=device-width, initial-scale=1.0" name="viewport">
+    <meta charset="utf-8">
+    <meta content="width=device-width, initial-scale=1.0" name="viewport">
 
-  <title>Dashboard - Clean Serve</title>
-  <meta content="" name="description">
-  <meta content="" name="keywords">
+    <title>Dashboard - Clean Serve</title>
+    <meta content="" name="description">
+    <meta content="" name="keywords">
 
     <link rel="apple-touch-icon" sizes="180x180" href="~/assets/img/apple-touch-icon.png">
-    
-    <link rel="icon" type="image/png" sizes="32x32" href="~/assets/img//favicon-32x32.png">
-    <link rel="icon" type="image/png" sizes="16x16" href="~/assets/img//favicon-16x16.png">
+
+    <!-- Favicon for browsers -->
+    <link rel="icon" type="image/png" sizes="32x32" href="~/assets/img/Favicon.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="~/assets/img/Favicon.png">
+     
+    <!-- Apple Touch Icon for iOS -->
+    <link rel="apple-touch-icon" sizes="180x180" href="~/assets/img/apple-touch-icon.png">
+
+    <!-- Android / Chrome -->
+    <link rel="icon" type="image/png" sizes="192x192" href="~/assets/img/android-chrome-192x192.png">
+    <link rel="icon" type="image/png" sizes="512x512" href="~/assets/img/android-chrome-512x512.png">
+
+    <!-- Web Manifest for PWA -->
+    <link rel="manifest" href="~/assets/img/site.webmanifest">
+
+    <!-- Optional: theme color -->
+    <meta name="theme-color" content="#4285f4">
+
     <link rel="manifest" href="~/assets/img//site.webmanifest">
 
-  <!-- Google Fonts -->
-  <link href="https://fonts.gstatic.com" rel="preconnect">
-  <link href="https://fonts.googleapis.com/css?family=Open+Sans:300,300i,400,400i,600,600i,700,700i|Nunito:300,300i,400,400i,600,600i,700,700i|Poppins:300,300i,400,400i,500,500i,600,600i,700,700i" rel="stylesheet">
+    <!-- Google Fonts -->
+    <link href="https://fonts.gstatic.com" rel="preconnect">
+    <link href="https://fonts.googleapis.com/css?family=Open+Sans:300,300i,400,400i,600,600i,700,700i|Nunito:300,300i,400,400i,600,600i,700,700i|Poppins:300,300i,400,400i,500,500i,600,600i,700,700i" rel="stylesheet">
 
-  <!-- Vendor CSS Files -->
-  <link href="~/assets/vendor/bootstrap/css/bootstrap.min.css" rel="stylesheet">
-  <link href="~/assets/vendor/bootstrap-icons/bootstrap-icons.css" rel="stylesheet">
-  <link href="~/assets/vendor/boxicons/css/boxicons.min.css" rel="stylesheet">
-  <link href="~/assets/vendor/quill/quill.snow.css" rel="stylesheet">
-  <link href="~/assets/vendor/quill/quill.bubble.css" rel="stylesheet">
-  <link href="~/assets/vendor/remixicon/remixicon.css" rel="stylesheet">
-  <link href="~/assets/vendor/simple-datatables/style.css" rel="stylesheet">
+    <!-- Vendor CSS Files -->
+    <link href="~/assets/vendor/bootstrap/css/bootstrap.min.css" rel="stylesheet">
+    <link href="~/assets/vendor/bootstrap-icons/bootstrap-icons.css" rel="stylesheet">
+    <link href="~/assets/vendor/boxicons/css/boxicons.min.css" rel="stylesheet">
+    <link href="~/assets/vendor/quill/quill.snow.css" rel="stylesheet">
+    <link href="~/assets/vendor/quill/quill.bubble.css" rel="stylesheet">
+    <link href="~/assets/vendor/remixicon/remixicon.css" rel="stylesheet">
+    <link href="~/assets/vendor/simple-datatables/style.css" rel="stylesheet">
 
-  @* Toast Notification *@
+    @* Toast Notification *@
     <link href="~/toast_notification/dist/js-snackbar.css" rel="stylesheet" />
     <link href="~/toast_notification/dist/js-snackbar.min.css" rel="stylesheet" />
     <link href="~/toast_notification/src/js-snackbar.css" rel="stylesheet" />
-  <!-- Template Main CSS File -->
+    <!-- Template Main CSS File -->
     <link href="~/assets/css/style.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet">
 
-  
+
+
 </head>
 
 <body>
-   
 
-  <!-- ======= Header ======= -->
-  <header id="header" class="header fixed-top d-flex align-items-center">
+    
+
+    <!-- ======= Header ======= -->
+    <header id="header" class="header fixed-top d-flex align-items-center">
 
         <div class="d-flex align-items-center ">
             <!-- Sidebar Toggle Button -->
             <i class="bi bi-list toggle-sidebar-btn" style="margin-right:25px;"></i>
 
             <!-- Logo -->
-            <a asp-action="HomeIndex" asp-controller="HomeController" class="logo d-flex align-items-center ml-5">
-                <img src="~/assets/img/logo.png" alt="">
+            <a asp-action="Index" asp-controller="ControlPanel" class="logo d-flex align-items-center ml-5">
+                <img src="~/assets/img/Favicon.png" alt="">
                 <span class="d-none d-lg-block">Clean Serve</span>
             </a>
         </div>
-    <nav class="header-nav ms-auto">
-      <ul class="d-flex align-items-center">
+        <nav class="header-nav ms-auto">
+            <ul class="d-flex align-items-center">
 
-       
+                <!-- Stock Notifications -->
+                <li class="nav-item dropdown">
+                    <a class="nav-link nav-icon" href="#" data-bs-toggle="dropdown">
+                        <i class="bi bi-bell"></i>
+                        @if (notificationCount > 0)
+                        {
+                            <span class="badge bg-primary badge-number">@notificationCount</span>
+                        }
+                    </a>
 
-        <li class="nav-item dropdown">
+                    <ul class="dropdown-menu dropdown-menu-end dropdown-menu-arrow notifications">
+                        <li class="dropdown-header">
+                            @if (notificationCount > 0)
+                            {
+                                <text>You have @notificationCount new low stock notifications</text>
+                                <a asp-controller="ControlPanel" asp-action="LowStock">
+                                    <span class="badge rounded-pill bg-primary p-2 ms-2">View all</span>
+                                </a>
+                            }
+                            else
+                            {
+                                <text>No new notifications</text>
+                            }
+                        </li>
+                        <li><hr class="dropdown-divider"></li>
 
-          <a class="nav-link nav-icon" href="#" data-bs-toggle="dropdown">
-            <i class="bi bi-bell"></i>
-            <span class="badge bg-primary badge-number">4</span>
-          </a><!-- End Notification Icon -->
+                        @foreach (var notif in lowStockNotifications.Take(4))
+                        {
+                            <li class="notification-item d-flex align-items-start py-2 px-3">
+                                <i class="bi bi-exclamation-circle text-warning me-2"></i>
+                                <div class="notification-text">
+                                    <h6 class="mb-1">@notif.ItemName</h6>
+                                    <p class="mb-0 small">Stock is low: @notif.Remaining remaining</p>
+                                    <p class="mb-0 small text-muted" data-detected="@notif.DetectedAt.ToString("o")">
+                                        <!-- JS will fill in "x min ago" -->
+                                    </p>
+                                </div>
+                            </li>
+                            <li><hr class="dropdown-divider"></li>
+                        }
 
-          <ul class="dropdown-menu dropdown-menu-end dropdown-menu-arrow notifications">
-            <li class="dropdown-header">
-              You have 4 new notifications
-              <a href="#"><span class="badge rounded-pill bg-primary p-2 ms-2">View all</span></a>
-            </li>
-            <li>
-              <hr class="dropdown-divider">
-            </li>
 
-            <li class="notification-item">
-              <i class="bi bi-exclamation-circle text-warning"></i>
-              <div>
-                <h4>Lorem Ipsum</h4>
-                <p>Quae dolorem earum veritatis oditseno</p>
-                <p>30 min. ago</p>
-              </div>
-            </li>
+                        <li class="dropdown-footer text-center">
+                            <a class="text-decoration-none" asp-controller="ControlPanel" asp-action="LowStock">Show all notifications</a>
+                        </li>
+                    </ul>
+                </li>
+                <!-- Messages Icon (unchanged) -->
+                <li class="nav-item dropdown">
+                    <a class="nav-link nav-icon" href="#" data-bs-toggle="dropdown">
+                        <i class="bi bi-chat-left-text"></i>
+                        <span class="badge bg-success badge-number">3</span>
+                    </a><!-- End Messages Icon -->
+                    <!-- Messages dropdown unchanged -->
+                </li><!-- End Messages Nav -->
+                <!-- Profile Nav (unchanged) -->
+                <li class="nav-item dropdown pe-3">
 
-            <li>
-              <hr class="dropdown-divider">
-            </li>
-
-            <li class="notification-item">
-              <i class="bi bi-x-circle text-danger"></i>
-              <div>
-                <h4>Atque rerum nesciunt</h4>
-                <p>Quae dolorem earum veritatis oditseno</p>
-                <p>1 hr. ago</p>
-              </div>
-            </li>
-
-            <li>
-              <hr class="dropdown-divider">
-            </li>
-
-            <li class="notification-item">
-              <i class="bi bi-check-circle text-success"></i>
-              <div>
-                <h4>Sit rerum fuga</h4>
-                <p>Quae dolorem earum veritatis oditseno</p>
-                <p>2 hrs. ago</p>
-              </div>
-            </li>
-
-            <li>
-              <hr class="dropdown-divider">
-            </li>
-
-            <li class="notification-item">
-              <i class="bi bi-info-circle text-primary"></i>
-              <div>
-                <h4>Dicta reprehenderit</h4>
-                <p>Quae dolorem earum veritatis oditseno</p>
-                <p>4 hrs. ago</p>
-              </div>
-            </li>
-
-            <li>
-              <hr class="dropdown-divider">
-            </li>
-            <li class="dropdown-footer">
-              <a href="#">Show all notifications</a>
-            </li>
-
-          </ul><!-- End Notification Dropdown Items -->
-
-        </li><!-- End Notification Nav -->
-
-        <li class="nav-item dropdown">
-
-          <a class="nav-link nav-icon" href="#" data-bs-toggle="dropdown">
-            <i class="bi bi-chat-left-text"></i>
-            <span class="badge bg-success badge-number">3</span>
-          </a><!-- End Messages Icon -->
-
-          <ul class="dropdown-menu dropdown-menu-end dropdown-menu-arrow messages">
-            <li class="dropdown-header">
-              You have 3 new messages
-              <a href="#"><span class="badge rounded-pill bg-primary p-2 ms-2">View all</span></a>
-            </li>
-            <li>
-              <hr class="dropdown-divider">
-            </li>
-
-            <li class="message-item">
-              <a href="#">
-                                <img src="~/assets/img/messages-1.jpg" alt="" class="rounded-circle">
-                <div>
-                  <h4>Maria Hudson</h4>
-                  <p>Velit asperiores et ducimus soluta repudiandae labore officia est ut...</p>
-                  <p>4 hrs. ago</p>
-                </div>
-              </a>
-            </li>
-            <li>
-              <hr class="dropdown-divider">
-            </li>
-
-            <li class="message-item">
-              <a href="#">
-                                <img src="~/assets/img/messages-2.jpg" alt="" class="rounded-circle">
-                <div>
-                  <h4>Anna Nelson</h4>
-                  <p>Velit asperiores et ducimus soluta repudiandae labore officia est ut...</p>
-                  <p>6 hrs. ago</p>
-                </div>
-              </a>
-            </li>
-            <li>
-              <hr class="dropdown-divider">
-            </li>
-
-            <li class="message-item">
-              <a href="#">
-                                <img src="~/assets/img/messages-3.jpg" alt="" class="rounded-circle">
-                <div>
-                  <h4>David Muldon</h4>
-                  <p>Velit asperiores et ducimus soluta repudiandae labore officia est ut...</p>
-                  <p>8 hrs. ago</p>
-                </div>
-              </a>
-            </li>
-            <li>
-              <hr class="dropdown-divider">
-            </li>
-
-            <li class="dropdown-footer">
-              <a href="#">Show all messages</a>
-            </li>
-
-          </ul><!-- End Messages Dropdown Items -->
-
-        </li><!-- End Messages Nav -->
-        <li class="nav-item dropdown pe-3">
-
-          <a class="nav-link nav-profile d-flex align-items-center pe-0" href="#" data-bs-toggle="dropdown">
+                    <a class="nav-link nav-profile d-flex align-items-center pe-0" href="#" data-bs-toggle="dropdown">
                         <img src="https://www.pngmart.com/files/21/Admin-Profile-Vector-PNG-Image.png" alt="Profile" class="rounded-circle">
-            <span class="d-none d-md-block dropdown-toggle ps-2">@TempData["UserName"]</span>
-          </a><!-- End Profile Iamge Icon -->
+                        <span class="d-none d-md-block dropdown-toggle ps-2">@TempData["UserName"]</span>
+                    </a><!-- End Profile Iamge Icon -->
 
-          <ul class="dropdown-menu dropdown-menu-end dropdown-menu-arrow profile">
-            <li class="dropdown-header">
+                    <ul class="dropdown-menu dropdown-menu-end dropdown-menu-arrow profile">
+                        <li class="dropdown-header">
                             <h6>@TempData["UserName"]</h6>
                             <span>@TempData["Access"]</span>
-            </li>
-            <li>
-              <hr class="dropdown-divider">
-            </li>
+                        </li>
+                        <li>
+                            <hr class="dropdown-divider">
+                        </li>
 
-            <li>
-                <a class="dropdown-item d-flex align-items-center" asp-action="Profile" asp-controller="ControlPanel">
-                <i class="bi bi-person"></i>
-                <span>My Profile</span>
-              </a>
-            </li>
-            <li>
-              <hr class="dropdown-divider">
-            </li>
+                        <li>
+                            <a class="dropdown-item d-flex align-items-center" asp-action="Profile" asp-controller="ControlPanel">
+                                <i class="bi bi-person"></i>
+                                <span>My Profile</span>
+                            </a>
+                        </li>
+                        <li>
+                            <hr class="dropdown-divider">
+                        </li>
 
-            
-            <li>
-              <hr class="dropdown-divider">
-            </li>
 
-            <li>
-              <a class="dropdown-item d-flex align-items-center" asp-action="Contact" asp-controller="ControlPanel">
-                <i class="bi bi-question-circle"></i>
-                <span>Need Help?</span>
-              </a>
-            </li>
-            <li>
-              <hr class="dropdown-divider">
-            </li>
+                        <li>
+                            <hr class="dropdown-divider">
+                        </li>
 
-            <li>
-                <a class="dropdown-item d-flex align-items-center" asp-action="Logout" asp-controller="ControlPanel">
-                <i class="bi bi-box-arrow-right"></i>
-                <span>Sign Out</span>
-              </a>
-            </li>
+                        <li>
+                            <a class="dropdown-item d-flex align-items-center" asp-action="Contact" asp-controller="ControlPanel">
+                                <i class="bi bi-question-circle"></i>
+                                <span>Need Help?</span>
+                            </a>
+                        </li>
+                        <li>
+                            <hr class="dropdown-divider">
+                        </li>
+                        <li>
+                            <a class="dropdown-item d-flex align-items-center" href="#" data-bs-toggle="modal" data-bs-target="#logoutModal">
+                                <i class="bi bi-box-arrow-right"></i>
+                                <span>Sign Out</span>
+                            </a>
+                        </li>
 
-          </ul><!-- End Profile Dropdown Items -->
-        </li><!-- End Profile Nav -->
 
-      </ul>
-    </nav><!-- End Icons Navigation -->
+                    </ul><!-- End Profile Dropdown Items -->
+                </li><!-- End Profile Nav -->
 
-  </header><!-- End Header -->
+            </ul>
+        </nav><!-- End Icons Navigation -->
+    </header><!-- End Header -->
+    <!-- ======= Sidebar ======= -->
+    <aside id="sidebar" class="sidebar">
+        <ul class="sidebar-nav" id="sidebar-nav">
 
-  <!-- ======= Sidebar ======= -->
-  <aside id="sidebar" class="sidebar">
-
-    <ul class="sidebar-nav" id="sidebar-nav">
-
-      <li class="nav-item">
-        <a class="nav-link " asp-action="Index" asp-controller="ControlPanel">
-          <i class="bi bi-grid"></i>
-          <span>Dashboard</span>
-        </a>
-      </li><!-- End Dashboard Nav -->
-
+            <!-- Dashboard -->
             <li class="nav-item">
-                <a class="nav-link collapsed" data-bs-target="#forms-nav" data-bs-toggle="collapse" href="#">
-                    <i class="bi bi-journal-text"></i><span>Sales</span><i class="bi bi-chevron-down ms-auto"></i>
+                <a class="nav-link @(currentController == "ControlPanel" && currentAction == "Dashboard" ? "active" : "")"
+                   asp-controller="ControlPanel" asp-action="Dashboard">
+                    <i class="bi bi-grid"></i>
+                    <span>Dashboard</span>
                 </a>
-                <ul id="forms-nav" class="nav-content collapse " data-bs-parent="#sidebar-nav">
-                    <li>
-                        <a asp-action="SalesIndex" asp-controller="Sales">
-                            <i class="bi bi-circle"></i><span>Sales Page</span>
-                        </a>
-                    </li>
-                     
-                    </ul>
+            </li>
+
+            <!-- Point of Sale -->
             <li class="nav-item">
-                <a class="nav-link collapsed" data-bs-target="#Inventory" data-bs-toggle="collapse" href="#">
-                    <i class="bi bi-box-seam fs-5"></i><span class="ms-2">Inventory</span><i class="bi bi-chevron-down ms-auto fs-6"></i>
+                <a class="nav-link d-flex align-items-center @(currentController == "Sales" ? "" : "collapsed")"
+                   data-bs-toggle="collapse"
+                   data-bs-target="#pos-nav"
+                   href="#">
+                    <i class="bi bi-cash-stack"></i>
+                    <span>Point of Sale</span>
+                    <i class="bi bi-chevron-down ms-auto"></i>
                 </a>
-                <ul id="Inventory" class="nav-content collapse" data-bs-parent="#sidebar-nav">
-                    <li>
-                        <a asp-controller="ControlPanel" asp-action="CategoryDetails">
-                            <i class="bi bi-tags fs-6"></i><span class="ms-1">Category</span>
-                        </a>
-                    </li>
-                    <li>
-                        <a asp-controller="ControlPanel" asp-action="ItemsDetail">
-                            <i class="bi bi-bag-check fs-6"></i><span class="ms-1">Items</span>
-                        </a>
-                    </li>
-                    <li>
-                        <a asp-controller="ControlPanel" asp-action="Suppliers">
-                            <i class="bi bi-truck fs-6"></i><span class="ms-1">Suppliers</span>
+                <ul id="pos-nav"
+                    class="nav-content collapse @(currentController == "Sales" ? "show" : "")"
+                    data-bs-parent="#sidebar-nav">
+                    <li class="nav-item">
+                        <a class="nav-link @(currentController == "Sales" ? "active" : "")"
+                           asp-controller="Sales" asp-action="SalesIndex">
+                            <i class="icon-cash"></i> Point of Sale
                         </a>
                     </li>
                 </ul>
             </li>
 
+            <!-- Inventory Management -->
             <li class="nav-item">
-                <a class="nav-link collapsed" data-bs-target="#Control-panel" data-bs-toggle="collapse" href="#">
-                    <i class="bi bi-sliders fs-5"></i><span class="ms-2">Control Panel</span><i class="bi bi-chevron-down ms-auto fs-6"></i>
+                <a class="nav-link d-flex align-items-center @(currentController == "ControlPanel" &&
+                                                                          (currentAction == "CategoryDetails" || currentAction == "ItemsDetail" || currentAction == "Consumeables" || currentAction == "Suppliers" || currentAction == "StockTracking" || currentAction == "LowStock" || currentAction == "CreatePurchase" || currentAction == "RawMaterialConsumption"|| currentAction == "UnitPrices")
+                                                    ? "" : "collapsed")"
+                   data-bs-toggle="collapse" data-bs-target="#Inventory" href="#">
+                    <i class="bi bi-box-seam"></i>
+                    <span>Inventory Management</span>
+                    <i class="bi bi-chevron-down ms-auto"></i>
                 </a>
-                <ul id="Control-panel" class="nav-content collapse" data-bs-parent="#sidebar-nav">
+
+                <ul id="Inventory"
+                    class="nav-content collapse @(currentController == "ControlPanel" &&
+                                                            (currentAction == "CategoryDetails" || currentAction == "ItemsDetail" || currentAction == "Consumeables" || currentAction == "Suppliers" || currentAction == "StockTracking" || currentAction == "LowStock" || currentAction == "CreatePurchase" || currentAction == "RawMaterialConsumption"|| currentAction == "UnitPrices")
+                                                        ? "show" : "")"
+                    data-bs-parent="#sidebar-nav"
+                    style="list-style: none; padding-left: 0;">
+
                     <li>
-                        <a asp-action="MethodDetail" asp-controller="ControlPanel">
-                            <i class="bi bi-gear fs-6"></i><span class="ms-1">Method</span>
+                        <a class="nav-link @(currentAction == "CategoryDetails" ? "text-primary" : "text-dark")"
+                           asp-controller="ControlPanel" asp-action="CategoryDetails">
+                            <i class="bi bi-tags fs-6"></i>
+                            <span class="ms-1">Category</span>
                         </a>
                     </li>
+
                     <li>
-                        <a asp-action="UsersDetail" asp-controller="ControlPanel">
-                            <i class="bi bi-person-lines-fill fs-6"></i><span class="ms-1">Users Detail</span>
+                        <a class="nav-link @(currentAction == "ItemsDetail" ? "text-primary" : "text-dark")"
+                           asp-controller="ControlPanel" asp-action="ItemsDetail">
+                            <i class="bi bi-bag-check fs-6"></i>
+                            <span class="ms-1">Items</span>
                         </a>
                     </li>
+
+                    <li>
+                        <a class="nav-link @(currentAction == "Consumeables" ? "text-primary" : "text-dark")"
+                           asp-controller="ControlPanel" asp-action="Consumeables">
+                            <i class="bi bi-clipboard-check fs-6"></i>
+                            <span class="ms-1">Consumeables Detail</span>
+                        </a>
+                    </li>
+
+                    <li>
+                        <a class="nav-link @(currentAction == "Suppliers" ? "text-primary" : "text-dark")"
+                           asp-controller="ControlPanel" asp-action="Suppliers">
+                            <i class="bi bi-people fs-6"></i>
+                            <span class="ms-1">Suppliers</span>
+                        </a>
+                    </li>
+
+                    <li>
+                        <a class="nav-link @(currentAction == "RawMaterialConsumption" ? "text-primary" : "text-dark")"
+                           asp-controller="ControlPanel" asp-action="RawMaterialConsumption">
+                            <i class="bi bi-clipboard-data fs-6"></i>
+                            <span class="ms-1">Raw Material Consumption</span>
+                        </a>
+                    </li>
+
+                    <li>
+                        <a class="nav-link @(currentController == "UnitPrice" ? "text-primary" : "text-dark")"
+                           asp-controller="ControlPanel" asp-action="UnitPrices">
+                            <i class="bi bi-box fs-6"></i>
+                            <span class="ms-1">Unit Management</span>
+                        </a>
+                    </li>
+
+                    <li>
+                        <a class="nav-link @(currentAction == "StockTracking" ? "text-primary" : "text-dark")"
+                           asp-controller="ControlPanel" asp-action="StockTracking">
+                            <i class="bi bi-bar-chart-line-fill fs-6"></i>
+                            <span class="ms-1">Stock Overview</span>
+                        </a>
+                    </li>
+
+                    <li>
+                        <a class="nav-link @(currentAction == "LowStock" ? "text-primary" : "text-dark")"
+                           asp-controller="ControlPanel" asp-action="LowStock">
+                            <i class="bi bi-exclamation-triangle-fill fs-6"></i>
+                            <span class="ms-1">Low Stock Alerts</span>
+                        </a>
+                    </li>
+
+                    <li>
+                        <a class="nav-link @(currentAction == "CreatePurchase" ? "text-primary" : "text-dark")"
+                           asp-controller="ControlPanel" asp-action="CreatePurchase">
+                            <i class="bi bi-cart-check-fill fs-6"></i>
+                            <span class="ms-1">Order Supplies</span>
+                        </a>
+                    </li>
+
                 </ul>
             </li>
- 
 
-      <li class="nav-item">
-        <a class="nav-link collapsed" data-bs-target="#icons-nav" data-bs-toggle="collapse" href="#">
-          <i class="bi bi-gem"></i><span>Icons</span><i class="bi bi-chevron-down ms-auto"></i>
-        </a>
-        <ul id="icons-nav" class="nav-content collapse " data-bs-parent="#sidebar-nav">
-          <li>
-            <a href="icons-bootstrap.html">
-              <i class="bi bi-circle"></i><span>Bootstrap Icons</span>
-            </a>
-          </li>
-          <li>
-            <a href="icons-remix.html">
-              <i class="bi bi-circle"></i><span>Remix Icons</span>
-            </a>
-          </li>
-          <li>
-            <a href="icons-boxicons.html">
-              <i class="bi bi-circle"></i><span>Boxicons</span>
-            </a>
-          </li>
+            <!-- Control Panel -->
+            <li class="nav-item">
+                <a class="nav-link d-flex align-items-center @(currentController == "ControlPanel" && (currentAction == "MethodDetail" || currentAction == "UsersDetail") ? "" : "collapsed")"
+                   data-bs-toggle="collapse" data-bs-target="#Control-panel" href="#">
+                    <i class="bi bi-sliders fs-5"></i><span class="ms-2">Control Panel</span>
+                    <i class="bi bi-chevron-down ms-auto fs-6"></i>
+                </a>
+                <ul id="Control-panel"
+                    class="nav-content collapse @(currentController == "ControlPanel" && (currentAction == "MethodDetail" || currentAction == "UsersDetail") ? "show" : "")"
+                    data-bs-parent="#sidebar-nav">
+
+                    <li><a class="@(currentAction == "MethodDetail" ? "active" : "")" asp-action="MethodDetail" asp-controller="ControlPanel"><i class="bi bi-gear fs-6"></i><span class="ms-1">Method</span></a></li>
+                    <li><a class="@(currentAction == "UsersDetail" ? "active" : "")" asp-action="UsersDetail" asp-controller="ControlPanel"><i class="bi bi-person-lines-fill fs-6"></i><span class="ms-1">Users Detail</span></a></li>
+                </ul>
+            </li>
+
+
+
+            <li class="nav-item">
+                <a class="nav-link @(currentController == "ControlPanel" && currentAction == "Profile" ? "active" : "collapsed")"
+                   asp-controller="ControlPanel" asp-action="Profile">
+                    <i class="bi bi-person"></i>
+                    <span>Profile</span>
+                </a>
+            </li><!-- End Profile Page Nav -->
+
+            <li class="nav-item">
+                <a class="nav-link @(currentController == "ControlPanel" && currentAction == "Contact" ? "active" : "collapsed")"
+                   asp-controller="ControlPanel" asp-action="Contact">
+                    <i class="bi bi-envelope"></i>
+                    <span>Contact</span>
+                </a>
+            </li><!-- End Contact Page Nav -->
+
+            <li class="nav-item">
+                <a class="nav-link @(currentController == "ControlPanel" && currentAction == "Register" ? "active" : "collapsed")"
+                   asp-controller="ControlPanel" asp-action="Register">
+                    <i class="bi bi-card-list"></i>
+                    <span>Register New Users</span>
+                </a>
+            </li><!-- End Register Page Nav -->
+
+            <li class="nav-item">
+                <a class="nav-link @(currentController == "ControlPanel" && currentAction == "Logout" ? "active" : "collapsed")"
+                   asp-controller="ControlPanel" asp-action="Logout">
+                    <i class="bi bi-box-arrow-in-right"></i>
+                    <span>Logout</span>
+                </a>
+            </li><!-- End Logout Page Nav -->
         </ul>
-      </li><!-- End Icons Nav -->
+    </aside>
 
-      <li class="nav-heading">Pages</li>
-
-      <li class="nav-item">
-        <a class="nav-link collapsed"  asp-action="Profile" asp-controller="ControlPanel">
-          <i class="bi bi-person"></i>
-          <span>Profile</span>
-        </a>
-      </li> 
-
-      <li class="nav-item">
-        <a class="nav-link collapsed"asp-action="Contact" asp-controller="ControlPanel">
-          <i class="bi bi-envelope"></i>
-          <span>Contact</span>
-        </a>
-      </li><!-- End Contact Page Nav -->
-
-      <li class="nav-item">
-        <a class="nav-link collapsed" asp-action="Register" asp-controller="ControlPanel">
-          <i class="bi bi-card-list"></i>
-          <span>Register New Users</span>
-        </a>
-      </li><!-- End Register Page Nav -->
-
-      <li class="nav-item">
-        <a class="nav-link collapsed" asp-action="Logout" asp-controller="ControlPanel">
-          <i class="bi bi-box-arrow-in-right"></i>
-          <span>Logout</span>
-        </a>
-      </li> 
-    </ul>
-
-  </aside>
     <main id="main" class="main">
+       
         @RenderBody()
         <!-- Toast Container -->
         <div class="position-fixed top-0 end-0 p-3" style="z-index: 1100">
@@ -395,17 +392,42 @@
     </main>
 
 
+    <!-- Logout Confirmation Modal -->
+    <div class="modal fade" id="logoutModal" tabindex="-1" aria-labelledby="logoutModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
 
-      <a href="#" class="back-to-top d-flex align-items-center justify-content-center"><i class="bi bi-arrow-up-short"></i></a>
+                <div class="modal-header">
+                    <h5 class="modal-title" id="logoutModalLabel">Confirm Logout</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
 
-      <!-- Vendor JS Files -->
-      <script src="~/assets/vendor/apexcharts/apexcharts.min.js"></script>
-      <script src="~/assets/vendor/bootstrap/js/bootstrap.bundle.min.js"></script>
-      <script src="~/assets/vendor/chart.js/chart.umd.js"></script>
-      <script src="~/assets/vendor/echarts/echarts.min.js"></script>
-      <script src="~/assets/vendor/quill/quill.min.js"></script>
-      <script src="~/assets/vendor/simple-datatables/simple-datatables.js"></script>
-      <script src="~/assets/vendor/tinymce/tinymce.min.js"></script>
+                <div class="modal-body">
+                    Are you sure you want to log out?
+                </div>
+
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <!-- Yes button will call the Logout action -->
+                    <form asp-action="Logout" asp-controller="ControlPanel" method="post" class="d-inline">
+                        <button type="submit" class="btn btn-danger">Yes, Log Out</button>
+                    </form>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <a href="#" class="back-to-top d-flex align-items-center justify-content-center"><i class="bi bi-arrow-up-short"></i></a>
+
+    <!-- Vendor JS Files -->
+    <script src="~/assets/vendor/apexcharts/apexcharts.min.js"></script>
+    <script src="~/assets/vendor/bootstrap/js/bootstrap.bundle.min.js"></script>
+    <script src="~/assets/vendor/chart.js/chart.umd.js"></script>
+    <script src="~/assets/vendor/echarts/echarts.min.js"></script>
+    <script src="~/assets/vendor/quill/quill.min.js"></script>
+    <script src="~/assets/vendor/simple-datatables/simple-datatables.js"></script>
+    <script src="~/assets/vendor/tinymce/tinymce.min.js"></script>
     <script src="~/assets/vendor/php-email-form/validate.js"></script>
     <script src="~/toast_notification/src/js-snackbar.js"></script>
 
@@ -416,8 +438,8 @@
     <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
 
 
-      <!-- Template Main JS File -->
-        <script src="~/assets/js/main.js"></script>
+    <!-- Template Main JS File -->
+    <script src="~/assets/js/main.js"></script>
     <script>
         document.addEventListener("DOMContentLoaded", function () {
             const sidebarToggle = document.querySelector(".toggle-sidebar-btn");
@@ -461,8 +483,83 @@
         });
     </script>
 
-    @* Taost Custom Js *@
-    <script src="~/toast_notification/custom.js"></script>
+    @* Taost Js *@
+    <script>
+        function showToast(message, type) {
+            const toast = document.createElement("div");
+            toast.className = `custom-toast ${type}`;
+            toast.textContent = message;
+
+            // Styling for top-center position
+            toast.style.position = "fixed";
+            toast.style.top = "20px";
+            toast.style.left = "50%";
+            toast.style.transform = "translateX(-50%) translateY(-20px)";
+            toast.style.backgroundColor = getToastColor(type);
+            toast.style.color = "#fff";
+            toast.style.padding = "12px 24px";
+            toast.style.borderRadius = "30px";
+            toast.style.zIndex = 1055;
+            toast.style.boxShadow = "0 4px 16px rgba(0,0,0,0.2)";
+            toast.style.fontSize = "16px";
+            toast.style.opacity = "0";
+            toast.style.transition = "opacity 0.5s ease, transform 0.5s ease";
+
+            document.body.appendChild(toast);
+
+            // Animate in
+            setTimeout(() => {
+                toast.style.opacity = "1";
+                toast.style.transform = "translateX(-50%) translateY(0)";
+            }, 100);
+
+            // Animate out
+            setTimeout(() => {
+                toast.style.opacity = "0";
+                toast.style.transform = "translateX(-50%) translateY(-20px)";
+                setTimeout(() => {
+                    toast.remove();
+                }, 500);
+            }, 4000);
+        }
+
+        function getToastColor(type) {
+            switch (type) {
+                case "success": return "#198754"; // green
+                case "error":   return "#dc3545"; // red
+                case "warning": return "#ffc107"; // yellow
+                case "info":    return "#0dcaf0"; // blue
+                default:        return "#6c757d"; // gray
+            }
+        }
+    </script>
+    <script>
+        document.addEventListener("DOMContentLoaded", function () {
+            function updateTimes() {
+                document.querySelectorAll("[data-detected]").forEach(el => {
+                    const detected = new Date(el.getAttribute("data-detected"));
+                    const diffMs = new Date() - detected;
+
+                    const minutes = Math.floor(diffMs / 60000);
+                    const seconds = Math.floor((diffMs % 60000) / 1000);
+
+                    if (minutes === 0) {
+                        el.textContent = `${seconds} sec ago`;
+                    } else if (minutes < 60) {
+                        el.textContent = `${minutes} min ago`;
+                    } else {
+                        const hours = Math.floor(minutes / 60);
+                        el.textContent = `${hours} hr${hours > 1 ? "s" : ""} ago`;
+                    }
+                });
+            }
+
+            updateTimes();                 // run immediately
+            setInterval(updateTimes, 10000); // refresh every 10s
+        });
+    </script>
+
+
 
 </body>
 </html>

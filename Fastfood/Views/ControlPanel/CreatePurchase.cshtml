@@ -1,0 +1,190 @@
+﻿@model Fastfood.ViewModels.PurchaseVM
+
+<div class="container">
+    <div class="card shadow-sm">
+        <div class="card-header bg-secondary text-white">
+            <h3 class="mb-0">Create New Purchase</h3>
+        </div>
+        <div class="card-body">
+            <form asp-action="CreatePurchase" method="post">
+                <div class="row g-3">
+                    <div class="col-md-4">
+                        <label asp-for="SupplierId" class="form-label">Supplier *</label>
+                        <select asp-for="SupplierId" asp-items="Model.Suppliers" class="form-select" required></select>
+                        <input asp-for="PurchaseDate" type="hidden" class="form-control" required />
+
+                    </div>
+                      
+                    <div class="col-md-4">
+                        <label asp-for="Payment" class="form-label">Payment *</label>
+                        <input asp-for="Payment" type="number" class="form-control" min="0" step="0.01" placeholder="Enter payment amount" />
+                    </div>
+                   
+                    <div class="col-md-4">
+                        <label asp-for="OrderOrpurchase" class="form-label">Order Type *</label>
+                        <select asp-for="OrderOrpurchase" class="form-select" required>
+                            <option value="">-- Select Order Type --</option>
+                            <option value="Order">Order</option>
+                            <option value="Purchase">Purchase</option>
+                        </select>
+                    </div>
+
+                    <input type="hidden" asp-for="DealingPerson" />
+
+                    <div class="col-md-4">
+                        <label asp-for="FlatDisc" class="form-label">Flat Discount</label>
+                        <input asp-for="FlatDisc" type="number" class="form-control" min="0" step="0.01" placeholder="Flat discount value" />
+                    </div>
+                    <div class="col-md-4">
+                        <label asp-for="Misc" class="form-label">Miscellaneous</label>
+                        <input asp-for="Misc" type="number" class="form-control" min="0" step="0.01" placeholder="Misc cost" />
+                    </div>
+
+                    <div class="col-md-4">
+                        <label asp-for="Commesion" class="form-label">Commission</label>
+                        <input asp-for="Commesion" type="number" class="form-control" min="0" step="0.01" placeholder="Commission amount" />
+                    </div>
+                </div>
+
+                <hr class="my-4" />
+
+                <div class="row mt-4">
+                    <!-- Items -->
+                    <div class="col-md-6">
+                        <h4 class="mb-3">Select Items</h4>
+                        <label class="form-label">Choose Items</label>
+                        <select id="itemSelector" class="form-select" multiple size="10">
+                            @foreach (var item in Model.Items)
+                            {
+                                <option value="@item.Value" data-name="@item.Text" data-type="item">@item.Text</option>
+                            }
+                        </select>
+                        <button type="button" class="btn btn-outline-primary mt-3 w-100" onclick="addSelectedItems('itemSelector')">Add Selected Items</button>
+                    </div>
+
+                    <!-- Consumeables -->
+                    <div class="col-md-6">
+                        <h4 class="mb-3">Select Consumeables</h4>
+                        <label class="form-label">Choose Consumeables</label>
+                        <select id="consumeableSelector" class="form-select" multiple size="10">
+                            @foreach (var cm in Model?.Consumeables ?? new List<SelectListItem>())
+                            {
+                                var price = ViewBag?.ConsumeablePrices?[cm.Value] ?? 0;
+                                <option value="@cm.Value"
+                                        data-name="@cm.Text"
+                                        data-type="consumeable"
+                                        data-unitprice="@price">
+                                    @cm.Text (@price)
+                                </option>
+                            }
+
+                        </select>
+
+
+                        <button type="button" class="btn btn-outline-warning mt-3 w-100" onclick="addSelectedItems('consumeableSelector')">Add Selected Consumeables</button>
+                    </div>
+                </div>
+
+                <div class="row mt-4">
+                    <div class="col-md-12">
+                        <h4 class="mb-3">Purchased Items</h4>
+                        <div class="table-responsive" style="max-height: 350px; overflow-y: auto;">
+                            <table class="table table-bordered table-striped align-middle" id="selectedItemsTable">
+                                <thead class="table-primary text-center">
+                                    <tr>
+                                        <th style="width: 40%;">Item Name</th>
+                                        <th style="width: 20%;">Quantity</th>
+                                        <th style="width: 25%;">Unit Price</th>
+                                        <th style="width: 15%;">Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="mt-4 d-flex justify-content-between">
+                    <button type="submit" class="btn btn-success btn-lg px-4">💾 Save Purchase</button>
+                    <a asp-action="PurchaseDetails" class="btn btn-secondary btn-lg px-4">Cancel</a>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+
+<script>
+    function addSelectedItems(selectorId) {
+        const selector = document.getElementById(selectorId);
+
+        Array.from(selector.selectedOptions).forEach(option => {
+            const itemId = option.value;
+            const itemName = option.dataset.name;
+            const itemType = option.dataset.type; // "item" or "consumeable"
+            const unitPrice = option.dataset.unitprice || 0;
+
+            // prevent duplicates
+            if (document.getElementById("row_" + itemType + "_" + itemId)) return;
+
+            if (itemType === "item") {
+                // fetch item price from backend
+                fetch(`/ControlPanel/GetItemPrices?itemId=${itemId}`)
+                    .then(response => response.json())
+                    .then(data => {
+                        appendRow(itemId, itemName, itemType, data.unitPrice);
+                    })
+                    .catch(error => {
+                        alert("Failed to fetch item prices.");
+                        console.error(error);
+                    });
+            } else {
+                // consumeables use unitPrice directly
+                appendRow(itemId, itemName, itemType, unitPrice);
+            }
+        });
+    }
+
+    function appendRow(itemId, itemName, itemType, unitPrice) {
+        const table = document.getElementById("selectedItemsTable").querySelector("tbody");
+        const row = document.createElement("tr");
+        row.id = "row_" + itemType + "_" + itemId;
+
+        row.innerHTML = `
+            <td>
+                ${itemName}
+                <input type="hidden" data-field="ItemId" value="${itemId}" />
+                <input type="hidden" data-field="ItemName" value="${itemName}" />
+                <input type="hidden" data-field="IsConsumeable" value="${itemType === "consumeable"}" />
+            </td>
+            <td>
+                <input type="number" data-field="Qty" class="form-control" required min="1" />
+            </td>
+            <td>
+                <input type="number" data-field="UnitPrice" class="form-control" step="0.01" required min="0" value="${unitPrice}" />
+            </td>
+            <td class="text-center">
+                <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeItem('${itemType}_${itemId}')">Remove</button>
+            </td>
+        `;
+
+        table.appendChild(row);
+        updateIndexes();
+    }
+
+    function removeItem(id) {
+        const row = document.getElementById("row_" + id);
+        if (row) row.remove();
+        updateIndexes();
+    }
+
+    function updateIndexes() {
+        const rows = document.querySelectorAll("#selectedItemsTable tbody tr");
+        rows.forEach((row, i) => {
+            row.querySelectorAll("input").forEach(input => {
+                const field = input.dataset.field;
+                input.name = `PurchasedItems[${i}].${field}`;
+            });
+        });
+    }
+</script>

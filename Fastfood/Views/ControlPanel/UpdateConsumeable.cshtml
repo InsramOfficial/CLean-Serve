@@ -1,0 +1,169 @@
+﻿@model FastFood.Models.Consumeable
+@{
+    var error = TempData["DeniedMessage"] as string;
+}
+
+@if (!string.IsNullOrEmpty(error))
+{
+    <div style="display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0;">
+        <div style="width: 400px; text-align: center; padding: 30px; border: 2px dashed #dc3545; border-radius: 10px; background-color: #fff0f1; color: #842029; box-shadow: 0 0 12px rgba(220, 53, 69, 0.2); font-family: 'Segoe UI', sans-serif;">
+            <div style="font-size: 24px; font-weight: bold; margin-bottom: 10px;">Access Denied</div>
+            <div style="font-size: 16px; margin-bottom: 20px;">
+                You do not have the necessary permissions to access this page.
+            </div>
+            <a asp-action="Index" asp-controller="ControlPanel"
+               style="display: inline-block; padding: 10px 25px; background-color: #dc3545; color: #fff; text-decoration: none; border-radius: 6px; font-weight: bold; transition: background-color 0.3s;">
+                Return to Home
+            </a>
+        </div>
+    </div>
+}
+else
+{
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+        <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+        <title>Update Consumeable</title>
+        <style>
+            body {
+                background: #F4F6FA;
+                color: #3EADFA;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                height: 100vh;
+                margin-top: -50px;
+            }
+
+            .background {
+                border: 1px solid #3EADFA;
+                background: #FFFFFF;
+                padding: 40px;
+                border-radius: 8px;
+                box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+                width: 500px;
+            }
+
+            button {
+                float: right;
+                background-color: #3EADFA;
+                color: #FFFFFF;
+                border: 1px solid #3EADFA;
+                border-radius: 4px;
+                padding: 10px 20px;
+                cursor: pointer;
+            }
+
+                button:hover {
+                    background-color: #1F75C1;
+                    border-color: #1F75C1;
+                }
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <div class="row">
+                <div class="col-md-12 background">
+                    <form method="post" asp-action="UpdateConsumeable" asp-controller="ControlPanel">
+                        <h2 class="text-center">Add Consumeable</h2>
+                        <hr>
+
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label asp-for="CMName">Name</label>
+                                    <input asp-for="CMName" class="form-control" required placeholder="Enter Consumeable Name" />
+                                    <span asp-validation-for="CMName" class="text-danger"></span>
+                                </div>
+                            </div>
+
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label asp-for="UnitPrice">Unit Price</label>
+                                    <input asp-for="UnitPrice" type="number" step="0.01" class="form-control" required placeholder="Enter Price" />
+                                    <span asp-validation-for="UnitPrice" class="text-danger"></span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 🔹 Unit Dropdown -->
+                        <div class="row">
+                            <div class="col-md-12">
+                                <div class="form-group">
+                                    <label asp-for="UnitId">Select Unit</label>
+                                    <select asp-for="UnitId" class="form-control"
+                                            asp-items="@(new SelectList(ViewBag.UnitList, "UnitId", "UnitCode"))" required>
+                                        <option value="">-- Select Unit --</option>
+                                    </select>
+                                    <span asp-validation-for="UnitId" class="text-danger"></span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label asp-for="StockAletQty">Stock Alert Qty</label>
+                                    <input asp-for="StockAletQty" type="number" step="1" class="form-control" placeholder="Enter Stock Alert Qty" />
+                                    <span asp-validation-for="StockAletQty" class="text-danger"></span>
+                                </div>
+                                <div class="form-group">
+                                    <label asp-for="PackWeight">Weight</label>
+                                    <input asp-for="PackWeight" type="number" step="0.01" class="form-control" placeholder="Enter Weight (e.g., 200.50)" />
+
+                                    <span asp-validation-for="PackWeight" class="text-danger"></span>
+                                </div>
+                            </div>
+
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label asp-for="Expiry">Expiry Date</label>
+                                    <input asp-for="Expiry" type="date" class="form-control" />
+                                    <span asp-validation-for="Expiry" class="text-danger"></span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label asp-for="ExpiryAlertDays">Expiry Alert Days</label>
+                                    <input asp-for="ExpiryAlertDays" type="number" step="1" class="form-control" placeholder="Enter Expiry Alert Days" />
+                                    <span asp-validation-for="ExpiryAlertDays" class="text-danger"></span>
+                                </div>
+                            </div>
+
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label asp-for="Status">Status</label>
+                                    <select asp-for="Status" class="form-control">
+                                        <option value="true">Active</option>
+                                        <option value="false">Inactive</option>
+                                    </select>
+                                    <span asp-validation-for="Status" class="text-danger"></span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <hr>
+
+                        <button type="submit" class="btn btn-primary ms-2">Update</button>
+                        <button class="btn btn-secondary">
+                            <a style="color:white;" asp-action="Consumeables" asp-controller="ControlPanel">Back</a>
+                        </button>
+                    </form>
+
+                   
+                </div>
+            </div>
+        </div>
+
+        <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+        <script src="https://cdn.jsdelivr.net/npm/jquery-validation@1.19.3/dist/jquery.validate.min.js"></script>
+        <script src="https://cdn.jsdelivr.net/npm/jquery-validation-unobtrusive@3.2.12/dist/jquery.validate.unobtrusive.min.js"></script>
+    </body>
+    </html>
+}

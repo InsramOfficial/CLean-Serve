@@ -1,0 +1,54 @@
+﻿@model Fastfood.ViewModel.RawMaterialConsumptionVM
+
+<div class="container mt-5">
+    <div class="form-container p-4 shadow rounded bg-white">
+        <form asp-action="CreateConsumption" asp-controller="ControlPanel" method="post">
+            <h2 class="text-center mb-4">Add Raw Material Consumption</h2>
+
+            <div class="form-row">
+                <!-- Base Item -->
+                <div class="form-group col-md-6">
+                    <label for="BInv_ItemId">Base Item (Menu Item)</label>
+                    <select asp-for="Consumption.BInv_ItemId" class="form-control">
+                        <option value="">--- Select Menu Item ---</option>
+                        @foreach (var item in Model.BaseItems)
+                        {
+                            <option value="@item.ItemId">@item.ItemName</option>
+                        }
+                    </select>
+                </div>
+
+                <!-- Raw Material -->
+                <div class="form-group col-md-6">
+                    <label for="RMInv_ItemId">Raw Material</label>
+                    <select asp-for="Consumption.RMInv_ItemId" class="form-control">
+                        <option value="">--- Select Raw Material ---</option>
+                        @foreach (var rm in Model.Consumeables)
+                        {
+                            <option value="@rm.CMID">@rm.CMName</option>
+                        }
+                    </select>
+                </div>
+            </div>
+
+            <div class="form-row">
+                <!-- Quantity -->
+                <div class="form-group col-md-6">
+                    <label asp-for="Consumption.RMQTY">Quantity</label>
+                    <input asp-for="Consumption.RMQTY" class="form-control" placeholder="Enter Quantity">
+                </div>
+
+                <!-- Remarks -->
+                <div class="form-group col-md-6">
+                    <label asp-for="Consumption.Remarks">Remarks</label>
+                    <input asp-for="Consumption.Remarks" class="form-control" placeholder="Enter Remarks">
+                </div>
+            </div>
+
+            <div class="d-flex justify-content-between mt-4">
+                <a asp-action="ConsumptionList" asp-controller="ControlPanel" class="btn btn-secondary">Back</a>
+                <button type="submit" class="btn btn-primary">Save</button>
+            </div>
+        </form>
+    </div>
+</div>

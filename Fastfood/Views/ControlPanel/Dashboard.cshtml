@@ -1,0 +1,116 @@
+﻿@{
+    var userName = TempData["UserName"] as string;
+    var loginMessage = TempData["loginmessage"] as string;
+}
+
+@if (!string.IsNullOrEmpty(loginMessage))
+{
+    <script>
+        document.addEventListener("DOMContentLoaded", function () {
+            showToast("@(loginMessage + " " + userName)", "success");
+        });
+    </script>
+}
+
+@using Fastfood.ViewModel
+@{
+    ViewData["Title"] = "Sales & Stock Dashboard";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+<div class="container py-4" style="font-family:'Poppins',sans-serif;">
+    <h2 style="font-size:1.6rem;font-weight:600;margin-bottom:1.5rem;color:#000;">📊 Sales & Stock Dashboard</h2>
+
+    <!-- Summary Cards -->
+    <div class="row g-3">
+        <div class="col-md-3 col-sm-6">
+            <div style="border-radius:12px;padding:15px 10px;color:#fff;text-align:center;transition:transform 0.3s, box-shadow 0.3s;cursor:pointer;display:flex;flex-direction:column;justify-content:center;min-height:130px;background:linear-gradient(135deg,#4DA3FF,#007bff);" onmouseover="this.style.transform='translateY(-5px)';this.style.boxShadow='0 8px 20px rgba(0,0,0,0.12)';" onmouseout="this.style.transform='translateY(0)';this.style.boxShadow='none';">
+                <span style="font-size:1.8rem;margin-bottom:8px;display:block;"><i class="uil uil-shopping-cart"></i></span>
+                <span style="font-size:0.8rem;font-weight:500;text-transform:uppercase;margin-bottom:4px;opacity:0.85;">Total Sales</span>
+                <span style="font-size:1.3rem;font-weight:600;word-break:break-word;">@Model.TotalPurchases</span>
+                <span style="font-size:0.7rem;opacity:0.7;word-break:break-word;">From Jan - @DateTime.Now.ToString("MMM yyyy")</span>
+            </div>
+        </div>
+        <div class="col-md-3 col-sm-6">
+            <div style="border-radius:12px;padding:15px 10px;color:#fff;text-align:center;transition:transform 0.3s, box-shadow 0.3s;cursor:pointer;display:flex;flex-direction:column;justify-content:center;min-height:130px;background:linear-gradient(135deg,#28a745,#198754);" onmouseover="this.style.transform='translateY(-5px)';this.style.boxShadow='0 8px 20px rgba(0,0,0,0.12)';" onmouseout="this.style.transform='translateY(0)';this.style.boxShadow='none';">
+                <span style="font-size:1.8rem;margin-bottom:8px;display:block;"><i class="uil uil-users-alt"></i></span>
+                <span style="font-size:0.8rem;font-weight:500;text-transform:uppercase;margin-bottom:4px;opacity:0.85;">Total Suppliers</span>
+                <span style="font-size:1.3rem;font-weight:600;word-break:break-word;">@Model.TotalSuppliers</span>
+                <span style="font-size:0.7rem;opacity:0.7;word-break:break-word;">Active suppliers</span>
+            </div>
+        </div>
+        <div class="col-md-3 col-sm-6">
+            <div style="border-radius:12px;padding:15px 10px;color:#000;text-align:center;transition:transform 0.3s, box-shadow 0.3s;cursor:pointer;display:flex;flex-direction:column;justify-content:center;min-height:130px;background:linear-gradient(135deg,#ffc107,#e0a800);" onmouseover="this.style.transform='translateY(-5px)';this.style.boxShadow='0 8px 20px rgba(0,0,0,0.12)';" onmouseout="this.style.transform='translateY(0)';this.style.boxShadow='none';">
+                <span style="font-size:1.8rem;margin-bottom:8px;display:block;"><i class="uil uil-box"></i></span>
+                <span style="font-size:0.8rem;font-weight:500;text-transform:uppercase;margin-bottom:4px;opacity:0.85;">Items in Stock</span>
+                <span style="font-size:1.3rem;font-weight:600;word-break:break-word;">@Model.TotalItemsInStock</span>
+                <span style="font-size:0.7rem;opacity:0.7;word-break:break-word;">Current inventory</span>
+            </div>
+        </div>
+        <div class="col-md-3 col-sm-6">
+            <div style="border-radius:12px;padding:15px 10px;color:#fff;text-align:center;transition:transform 0.3s, box-shadow 0.3s;cursor:pointer;display:flex;flex-direction:column;justify-content:center;min-height:130px;background:linear-gradient(135deg,#dc3545,#b02a37);" onmouseover="this.style.transform='translateY(-5px)';this.style.boxShadow='0 8px 20px rgba(0,0,0,0.12)';" onmouseout="this.style.transform='translateY(0)';this.style.boxShadow='none';">
+                <span style="font-size:1.8rem;margin-bottom:8px;display:block;"><i class="uil uil-star"></i></span>
+                <span style="font-size:0.8rem;font-weight:500;text-transform:uppercase;margin-bottom:4px;opacity:0.85;">Best Selling Item</span>
+                <span style="font-size:1.3rem;font-weight:600;word-break:break-word;">@Model.BestSellingItem</span>
+                <span style="font-size:0.7rem;opacity:0.7;word-break:break-word;">Sold @Model.BestSellingQty units</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Charts -->
+    <div class="row mt-4 g-4">
+        <div class="col-lg-6">
+            <div style="border-radius:12px;overflow:hidden;padding:0;box-shadow:0 4px 15px rgba(0,0,0,0.05);">
+                <div style="font-weight:600;font-size:1rem;color:#fff;padding:10px 15px;background:#007bff;">Monthly Sales Trend</div>
+                <div style="padding:15px;">
+                    <canvas id="salesTrendChart" style="height:300px;"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-6">
+            <div style="border-radius:12px;overflow:hidden;padding:0;box-shadow:0 4px 15px rgba(0,0,0,0.05);">
+                <div style="font-weight:600;font-size:1rem;color:#fff;padding:10px 15px;background:#28a745;">Top 5 Best Selling Items</div>
+                <div style="padding:15px;">
+                    <canvas id="bestSellingChart" style="height:300px;"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Monthly Sales Trend Chart
+    new Chart(document.getElementById('salesTrendChart'), {
+        type: 'line',
+        data: {
+            labels: @Html.Raw(Json.Serialize(Model.MonthlyLabels)),
+            datasets: [{
+                label: 'Sales (Rs)',
+                data: @Html.Raw(Json.Serialize(Model.MonthlyPurchaseValues)),
+                borderColor: '#007bff',
+                backgroundColor: 'rgba(0, 123, 255, 0.2)',
+                tension: 0.3,
+                fill: true,
+                pointRadius: 4,
+                pointHoverRadius: 6
+            }]
+        },
+        options: { responsive: true, plugins: { legend: { display: true } }, scales: { y: { beginAtZero: true } } }
+    });
+
+    // Best Selling Items Chart
+    new Chart(document.getElementById('bestSellingChart'), {
+        type: 'bar',
+        data: {
+            labels: @Html.Raw(Json.Serialize(Model.BestSellingLabels)),
+            datasets: [{
+                label: 'Units Sold',
+                data: @Html.Raw(Json.Serialize(Model.BestSellingValues)),
+                backgroundColor: ['#dc3545', '#ffc107', '#28a745', '#17a2b8', '#6f42c1'],
+                borderRadius: 5
+            }]
+        },
+        options: { responsive: true, plugins: { legend: { display: true } }, scales: { y: { beginAtZero: true } } }
+    });
+</script>

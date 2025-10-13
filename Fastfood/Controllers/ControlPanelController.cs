@@ -2,13 +2,19 @@
 using Fastfood.Data;
 using Fastfood.Models;
 using Fastfood.ViewModel;
+using Fastfood.ViewModels;
+using FastFood.Models;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.Filters;
 using Microsoft.AspNetCore.Mvc.RazorPages;
+using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Hosting;
+using Newtonsoft.Json;
+using System.Globalization;
 using System.Security.Claims;
 using System.Security.Cryptography.X509Certificates;
 
@@ -23,25 +29,125 @@ namespace Fastfood.Controllers
             db = _db;
             env = _env;
         }
-        
-        #region Index
-        public IActionResult Index()
+
+        #region Dashboard
+        public async Task OnActionExecutionAsync(ActionExecutingContext context, ActionExecutionDelegate next)
         {
+            Console.WriteLine("[LowStockFilter] Executing filter...");
+
+            // ✅ Direct query for low stock items (same as LowStock method but self-contained)
+            var lowStockItems = await (
+                from st in db.StockTracking
+                where st.Source == "Purchase" || st.Source == "Sale"
+                group st by new { st.ItemId, st.ItemName } into g
+                let purchased = g.Where(x => x.Source == "Purchase").Sum(x => (int?)x.Qty) ?? 0
+                let sold = g.Where(x => x.Source == "Sale").Sum(x => (int?)x.Qty) ?? 0
+                let remaining = purchased - sold
+                where remaining <= 10
+                orderby remaining
+                select new
+                {
+                    ItemId = g.Key.ItemId,
+                    ItemName = g.Key.ItemName ?? "Unknown Item",
+                    Remaining = remaining,
+                    DetectedAt = DateTime.Now // ✅ stamp when this notification is created
+                }
+            ).ToListAsync();
+
+            // Debug log
+            Console.WriteLine($"[LowStockFilter] Found {lowStockItems.Count} low stock items.");
+            foreach (var item in lowStockItems)
+                Console.WriteLine($"   Item: {item.ItemName}, Remaining: {item.Remaining}, DetectedAt: {item.DetectedAt}");
+
+            // ✅ Pass to _Layout
+            if (context.Controller is Controller controller)
+            {
+                controller.ViewBag.LowStockNotifications = lowStockItems;
+                controller.ViewBag.NotificationCount = lowStockItems.Count;
+            }
+
+            await next();
+        }
+
+        [HttpGet]
+        public async Task<IActionResult> Dashboard()
+        {
+            // --- Session and access checks ---
             TempData["UserName"] = HttpContext.Session.GetString("UserName");
             TempData["Access"] = HttpContext.Session.GetString("Access");
 
-            if (HttpContext.Session.GetString("flag") == "true")
-            {
-                return View();
-            }
-            else
+            if (HttpContext.Session.GetString("flag") != "true")
             {
                 return RedirectToAction("Login");
             }
 
+            // --- Summary calculations ---
+            var totalPurchases = await db.Inv_Purchases.CountAsync(); // total purchases from suppliers
+            var totalSuppliers = await db.suppliers.CountAsync();
+            var totalItemsInStock = await db.Inv_PurchasedItems.SumAsync(pi => (decimal?)pi.Qty) ?? 0;
+
+            // --- Best-selling items from SoldItems ---
+            var bestSellingGroup = await db.soldItems
+                .GroupBy(si => si.ItemName ?? "Unknown")
+                .Select(g => new
+                {
+                    ItemName = g.Key,
+                    TotalQty = g.Sum(x => x.Qty)
+                })
+                .OrderByDescending(g => g.TotalQty)
+                .FirstOrDefaultAsync();
+
+            var topSellingItems = await db.soldItems
+                .GroupBy(si => si.ItemName ?? "Unknown")
+                .Select(g => new
+                {
+                    ItemName = g.Key,
+                    TotalQty = g.Sum(x => x.Qty)
+                })
+                .OrderByDescending(g => g.TotalQty)
+                .Take(5)
+                .ToListAsync();
+
+            // --- Monthly sales trend from Sales table ---
+            var monthlySalesData = await db.sales
+                .Where(s => s.SaleDate.HasValue)
+                .ToListAsync(); // fetch to memory
+
+            var monthlyGroups = monthlySalesData
+                .GroupBy(s => s.SaleDate.Value.Month)
+                .Select(g => new
+                {
+                    Month = g.Key,
+                    TotalRevenue = g.Sum(s => (decimal)(s.Payment ?? 0))
+                })
+                .OrderBy(g => g.Month)
+                .ToList();
+
+            // --- Prepare ViewModel ---
+            var vm = new PurchaseStockDashboardVM
+            {
+                TotalPurchases = totalPurchases,
+                TotalSuppliers = totalSuppliers,
+                TotalItemsInStock = totalItemsInStock,
+                BestSellingItem = bestSellingGroup?.ItemName ?? "N/A",
+                BestSellingQty = (decimal)(bestSellingGroup?.TotalQty ?? 0),
+                MonthlyLabels = monthlyGroups
+                    .Select(m => CultureInfo.CurrentCulture.DateTimeFormat.GetAbbreviatedMonthName(m.Month))
+                    .ToList(),
+                MonthlyPurchaseValues = monthlyGroups
+                    .Select(m => m.TotalRevenue)
+                    .ToList(),
+                BestSellingLabels = topSellingItems
+                    .Select(t => t.ItemName)
+                    .ToList(),
+                BestSellingValues = topSellingItems
+                    .Select(t => (decimal)t.TotalQty)
+                    .ToList()
+            };
+
+            return View(vm);
         }
         #endregion
-
 
         #region ErrorMessage
         public IActionResult ErrorMessage()
@@ -54,37 +160,40 @@ namespace Fastfood.Controllers
         #region Category
         // GET: ControlPanelController
         [HttpGet]
-		public IActionResult CategoryDetails()
-		{
-			TempData["UserName"] = HttpContext.Session.GetString("UserName");
+        public async Task<IActionResult> CategoryDetails()
+        {
+            TempData["UserName"] = HttpContext.Session.GetString("UserName");
             TempData["Access"] = HttpContext.Session.GetString("Access");
 
             if (HttpContext.Session.GetString("flag") == "true")
-			{
-				var methodName = "CategoryDetails";
-				var usercode = HttpContext.Session.GetString("UserCode");
+            {
+                var methodName = "CategoryDetails";
+                var usercode = HttpContext.Session.GetString("UserCode");
 
-				bool permission = db.userPermissions.Where(u => u.UserCode.ToString() == usercode && u.MethodName == methodName).Select(u => u.View).FirstOrDefault();
+                bool permission = await db.userPermissions
+                    .Where(u => u.UserCode.ToString() == usercode && u.MethodName == methodName)
+                    .Select(u => u.View)
+                    .FirstOrDefaultAsync();
 
-				if (permission)
-				{
-					TempData["Permission"] = "";
-					var categories = db.categories.ToList();
-					return View(categories);
-				}
-				else
-				{
-					TempData["Permission"] = "You do not have permission to access this page";
-					return View();
-				}
-			}
-			else
-			{
-				return RedirectToAction(nameof(Login));
-			}
-		}
+                if (permission)
+                {
+                    TempData["Permission"] = "";
+                    var categories = await db.categories.ToListAsync();
+                    return View(categories);
+                }
+                else
+                {
+                    TempData["Permission"] = "You do not have permission to access this page";
+                    return View();
+                }
+            }
+            else
+            {
+                return RedirectToAction(nameof(Login));
+            }
+        }
 
-		public IActionResult CreateCategory()
+        public IActionResult CreateCategory()
 		{
 
 			TempData["UserName"] = HttpContext.Session.GetString("UserName");
@@ -341,74 +450,79 @@ namespace Fastfood.Controllers
 
         #region Items
 
-        public IActionResult ItemsDetail()
-		{
+        public async Task<IActionResult> ItemsDetail()
+        {
             TempData["Access"] = HttpContext.Session.GetString("Access");
-			TempData["UserName"] = HttpContext.Session.GetString("UserName");
+            TempData["UserName"] = HttpContext.Session.GetString("UserName");
 
             if (HttpContext.Session.GetString("flag") == "true")
-			{
-				var methodName = "ItemsDetail";
-				var usercode = HttpContext.Session.GetString("UserCode");
+            {
+                var methodName = "ItemsDetail";
+                var usercode = HttpContext.Session.GetString("UserCode");
 
-				bool permission = db.userPermissions.Where(u => u.UserCode.ToString() == usercode && u.MethodName == methodName).Select(u => u.View).FirstOrDefault();
-				if (permission)
-				{
-					TempData["Permission"] = "";
-					var items = db.items.ToList();
-					return View(items);
-				}
-				else
-				{
-					TempData["Permission"] = "You do not have permission to access this page";
-					return View();
-				}
-			}
-			else
-			{
-				return RedirectToAction(nameof(Login));
-			}
+                bool permission = await db.userPermissions
+                    .Where(u => u.UserCode.ToString() == usercode && u.MethodName == methodName)
+                    .Select(u => u.View)
+                    .FirstOrDefaultAsync();
 
+                if (permission)
+                {
+                    TempData["Permission"] = "";
+                    var items = await db.items.ToListAsync();
+                    return View(items);
+                }
+                else
+                {
+                    TempData["Permission"] = "You do not have permission to access this page";
+                    return View();
+                }
+            }
+            else
+            {
+                return RedirectToAction(nameof(Login));
+            }
+        }
 
-
-		}
-		[HttpGet]
-		public IActionResult CreateItem()
-		{
+        [HttpGet]
+        public async Task<IActionResult> CreateItem()
+        {
             TempData["Access"] = HttpContext.Session.GetString("Access");
-			TempData["UserName"] = HttpContext.Session.GetString("UserName");
+            TempData["UserName"] = HttpContext.Session.GetString("UserName");
 
             if (HttpContext.Session.GetString("flag") == "true")
-			{
-				var methodName = "CreateItem";
-				var usercode = HttpContext.Session.GetString("UserCode");
+            {
+                var methodName = "CreateItem";
+                var usercode = HttpContext.Session.GetString("UserCode");
 
-				bool permission = db.userPermissions.Where(u => u.UserCode.ToString() == usercode && u.MethodName == methodName).Select(u => u.View).FirstOrDefault();
-				if (permission)
-				{
-					TempData["Permission"] = "";
-					ItemsVM items = new();
-					var category = db.categories.ToList();
-					items.category = category;
-					return View(items);
-				}
-				else
-				{
-					TempData["Permission"] = "You do not have permission to access this page";
-					return View();
-				}
-			}
-			else
-			{
-				return RedirectToAction(nameof(Login));
-			}
+                bool permission = await db.userPermissions
+                    .Where(u => u.UserCode.ToString() == usercode && u.MethodName == methodName)
+                    .Select(u => u.View)
+                    .FirstOrDefaultAsync();
 
+                if (permission)
+                {
+                    TempData["Permission"] = "";
+                    ItemsVM items = new()
+                    {
+                        category = await db.categories.ToListAsync()
+                    };
+                    return View(items);
+                }
+                else
+                {
+                    TempData["Permission"] = "You do not have permission to access this page";
+                    return View();
+                }
+            }
+            else
+            {
+                return RedirectToAction(nameof(Login));
+            }
+        }
 
-
-		}
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public IActionResult CreateItem(ItemsVM item)
+        public async Task<IActionResult> CreateItem(ItemsVM item)
         {
             TempData["Access"] = HttpContext.Session.GetString("Access");
             TempData["UserName"] = HttpContext.Session.GetString("UserName");
@@ -419,23 +533,21 @@ namespace Fastfood.Controllers
                 {
                     try
                     {
-                        // Handle image upload
                         string uniqueFileName = null;
+
                         if (item.ItemImage != null)
                         {
                             string uploadsFolder = Path.Combine(env.WebRootPath, "Images");
-
                             string fileExtension = Path.GetExtension(item.ItemImage.FileName);
-                            uniqueFileName = Guid.NewGuid().ToString() + fileExtension;
+                            uniqueFileName = Guid.NewGuid() + fileExtension;
                             string filePath = Path.Combine(uploadsFolder, uniqueFileName);
 
                             using (var fileStream = new FileStream(filePath, FileMode.Create))
                             {
-                                item.ItemImage.CopyTo(fileStream);
+                                await item.ItemImage.CopyToAsync(fileStream);
                             }
                         }
 
-                        // Save item to database
                         Item addItem = new()
                         {
                             ItemName = item.ItemName,
@@ -443,11 +555,12 @@ namespace Fastfood.Controllers
                             Discount = item.Discount,
                             CategoryId = item.CategoryId,
                             Remarks = item.Remarks,
-                            Picture = uniqueFileName // Store image name
+                            Picture = uniqueFileName,
+                            ItemType = item.ItemType
                         };
 
-                        db.items.Add(addItem);
-                        db.SaveChanges();
+                        await db.items.AddAsync(addItem);
+                        await db.SaveChangesAsync();
 
                         TempData["ToastType"] = "success";
                         TempData["ToastMessage"] = $"Item {addItem.ItemName} added successfully";
@@ -460,7 +573,7 @@ namespace Fastfood.Controllers
                 }
                 else
                 {
-                    return View(item); // Validation failed
+                    return View(item);
                 }
             }
             else
@@ -469,53 +582,58 @@ namespace Fastfood.Controllers
             }
         }
 
-
         [HttpGet]
-		public IActionResult EditItem(int id)
-		{
+        public async Task<IActionResult> EditItem(int id)
+        {
             TempData["Access"] = HttpContext.Session.GetString("Access");
-			TempData["UserName"] = HttpContext.Session.GetString("UserName");
+            TempData["UserName"] = HttpContext.Session.GetString("UserName");
 
             if (HttpContext.Session.GetString("flag") == "true")
-			{
-				var methodName = "EditItem";
-				var usercode = HttpContext.Session.GetString("UserCode");
+            {
+                var methodName = "EditItem";
+                var usercode = HttpContext.Session.GetString("UserCode");
 
-				bool permission = db.userPermissions.Where(u => u.UserCode.ToString() == usercode && u.MethodName == methodName).Select(u => u.View).FirstOrDefault();
-				if (permission)
-				{
-					TempData["Permission"] = "";
-					var item = db.items.Find(id);
-					ItemsVM items = new();
-					items.ItemId = id;
-					items.ItemName = item.ItemName;
-					items.RecentUnitPrice = item.RecentUnitPrice;
-					items.Discount = item.Discount;
-					items.CategoryId = item.CategoryId;
-					items.Remarks = item.Remarks;
-					var categories = db.categories.ToList();
-					items.category = categories;
-					items.Picture = item.Picture;
-					return View(items);
-				}
-				else
-				{
-					TempData["Permission"] = "You do not have permission to access this page";
-					return View();
-				}
-			}
-			else
-			{
-				return RedirectToAction(nameof(Login));
-			}
+                bool permission = await db.userPermissions
+                    .Where(u => u.UserCode.ToString() == usercode && u.MethodName == methodName)
+                    .Select(u => u.View)
+                    .FirstOrDefaultAsync();
 
+                if (permission)
+                {
+                    TempData["Permission"] = "";
+                    var item = await db.items.FindAsync(id);
+                    if (item == null) return NotFound();
 
+                    ItemsVM items = new()
+                    {
+                        ItemId = id,
+                        ItemName = item.ItemName,
+                        RecentUnitPrice = item.RecentUnitPrice,
+                        Discount = item.Discount,
+                        CategoryId = item.CategoryId,
+                        Remarks = item.Remarks,
+                        category = await db.categories.ToListAsync(),
+                        Picture = item.Picture,
+                        ItemType = item.ItemType
+                    };
 
+                    return View(items);
+                }
+                else
+                {
+                    TempData["Permission"] = "You do not have permission to access this page";
+                    return View();
+                }
+            }
+            else
+            {
+                return RedirectToAction(nameof(Login));
+            }
+        }
 
-		}
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public IActionResult EditItem(ItemsVM item)
+        public async Task<IActionResult> EditItem(ItemsVM item)
         {
             TempData["UserName"] = HttpContext.Session.GetString("UserName");
             TempData["Access"] = HttpContext.Session.GetString("Access");
@@ -526,7 +644,7 @@ namespace Fastfood.Controllers
                 {
                     try
                     {
-                        var existingItem = db.items.Find(item.ItemId);
+                        var existingItem = await db.items.FindAsync(item.ItemId);
                         if (existingItem != null)
                         {
                             existingItem.ItemName = item.ItemName;
@@ -534,37 +652,36 @@ namespace Fastfood.Controllers
                             existingItem.Discount = item.Discount;
                             existingItem.CategoryId = item.CategoryId;
                             existingItem.Remarks = item.Remarks;
+                            existingItem.ItemType = item.ItemType;
 
-							 
-						   if (item.ItemImage != null && item.ItemImage.Length > 0)
-						   {
-							   if (!string.IsNullOrEmpty(existingItem.Picture))
-							   {
-								   var usageCount = db.items.Count(i => i.Picture == existingItem.Picture);
-								   if (usageCount == 1)
-								   {
-									   var oldPath = Path.Combine(env.WebRootPath, "images", existingItem.Picture);
-									   if (System.IO.File.Exists(oldPath))
-									   {
-										   System.IO.File.Delete(oldPath);
-									   }
-								   }
-							   }
+                            if (item.ItemImage != null && item.ItemImage.Length > 0)
+                            {
+                                if (!string.IsNullOrEmpty(existingItem.Picture))
+                                {
+                                    var usageCount = await db.items.CountAsync(i => i.Picture == existingItem.Picture);
+                                    if (usageCount == 1)
+                                    {
+                                        var oldPath = Path.Combine(env.WebRootPath, "images", existingItem.Picture);
+                                        if (System.IO.File.Exists(oldPath))
+                                        {
+                                            System.IO.File.Delete(oldPath);
+                                        }
+                                    }
+                                }
 
-							   var fileName = Guid.NewGuid().ToString() + Path.GetExtension(item.ItemImage.FileName);
-							   var filePath = Path.Combine(env.WebRootPath, "images", fileName);
+                                var fileName = Guid.NewGuid() + Path.GetExtension(item.ItemImage.FileName);
+                                var filePath = Path.Combine(env.WebRootPath, "images", fileName);
 
-							   using (var stream = new FileStream(filePath, FileMode.Create))
-							   {
-								   item.ItemImage.CopyTo(stream);
-							   }
+                                using (var stream = new FileStream(filePath, FileMode.Create))
+                                {
+                                    await item.ItemImage.CopyToAsync(stream);
+                                }
 
-							   existingItem.Picture = fileName;
-						   }
-						   
+                                existingItem.Picture = fileName;
+                            }
 
-						   db.items.Update(existingItem);
-                            db.SaveChanges();
+                            db.items.Update(existingItem);
+                            await db.SaveChangesAsync();
 
                             TempData["ToastType"] = "success";
                             TempData["ToastMessage"] = $"Item {existingItem.ItemName} updated successfully.";
@@ -593,7 +710,7 @@ namespace Fastfood.Controllers
             }
         }
 
-        public IActionResult DeleteItem(int id)
+        public async Task<IActionResult> DeleteItem(int id)
         {
             TempData["Access"] = HttpContext.Session.GetString("Access");
             TempData["UserName"] = HttpContext.Session.GetString("UserName");
@@ -603,18 +720,17 @@ namespace Fastfood.Controllers
                 var methodName = "DeleteItem";
                 var usercode = HttpContext.Session.GetString("UserCode");
 
-                bool permission = db.userPermissions
+                bool permission = await db.userPermissions
                     .Where(u => u.UserCode.ToString() == usercode && u.MethodName == methodName)
                     .Select(u => u.View)
-                    .FirstOrDefault();
+                    .FirstOrDefaultAsync();
 
                 if (permission)
                 {
-                    var deleteItem = db.items.Find(id);
+                    var deleteItem = await db.items.FindAsync(id);
 
                     if (deleteItem != null)
                     {
-                        // Optional image deletion logic
                         if (!string.IsNullOrEmpty(deleteItem.Picture))
                         {
                             var imagePath = Path.Combine(env.WebRootPath, "images", deleteItem.Picture);
@@ -625,7 +741,7 @@ namespace Fastfood.Controllers
                         }
 
                         db.items.Remove(deleteItem);
-                        db.SaveChanges();
+                        await db.SaveChangesAsync();
 
                         TempData["ToastType"] = "error";
                         TempData["ToastMessage"] = $"Item {deleteItem.ItemName} deleted successfully.";
@@ -648,91 +764,912 @@ namespace Fastfood.Controllers
 
         #endregion
 
-        #region Method
-        [HttpGet]
-		public IActionResult MethodDetail()
-		{
-			TempData["UserName"] = HttpContext.Session.GetString("UserName");
+        #region Consumebles
+        // GET: List of Consumeables
+        // ==================== LIST PAGE ====================
+       public async Task<IActionResult> Consumeables()
+            {
+                TempData["UserName"] = HttpContext.Session.GetString("UserName");
+                TempData["Access"] = HttpContext.Session.GetString("Access");
+
+                if (HttpContext.Session.GetString("flag") != "true")
+                    return RedirectToAction(nameof(Login));
+
+                var methodName = "Consumeables";
+                var usercode = HttpContext.Session.GetString("UserCode");
+
+                bool permission = await db.userPermissions
+                    .Where(u => u.UserCode.ToString() == usercode && u.MethodName == methodName)
+                    .Select(u => u.View)
+                    .FirstOrDefaultAsync();
+
+                if (!permission)
+                {
+                    TempData["Permission"] = "You do not have permission to access this page";
+                    return View(new List<Consumeable>());
+                }
+
+                TempData["Permission"] = "";
+
+                // ✅ FIXED: include navigation property, not scalar FK
+                var consumeables = await db.Consumeables
+                    .Include(c => c.Unit)
+                    .ToListAsync();
+
+                return View(consumeables);
+            }
+
+
+        // ==================== CREATE PAGE (GET) ====================
+        public IActionResult CreateConsumeable()
+        {
+            TempData["UserName"] = HttpContext.Session.GetString("UserName");
             TempData["Access"] = HttpContext.Session.GetString("Access");
 
-            if (HttpContext.Session.GetString("flag") == "true")
-			{
-				var methodName = "MethodDetail";
-				var usercode = HttpContext.Session.GetString("UserCode");
+            if (HttpContext.Session.GetString("flag") != "true")
+                return RedirectToAction(nameof(Login));
 
-				bool permission = db.userPermissions.Where(u => u.UserCode.ToString() == usercode && u.MethodName == methodName).Select(u => u.View).FirstOrDefault();
-				if (permission)
-				{
-					TempData["Permission"] = "";
-					var methods = db.methods.ToList();
-					return View(methods);
-				}
-				else
-				{
-					TempData["Permission"] = "You do not have permission to access this page";
-					return View();
-				}
-			}
-			else
-			{
-				return RedirectToAction(nameof(Login));
-			}
+            var methodName = "CreateConsumeable";
+            var usercode = HttpContext.Session.GetString("UserCode");
 
+            bool permission = db.userPermissions
+                .Where(u => u.UserCode.ToString() == usercode && u.MethodName == methodName)
+                .Select(u => u.View)
+                .FirstOrDefault();
 
+            if (!permission)
+            {
+                TempData["Permission"] = "You do not have permission to access this page";
+                return View();
+            }
 
-		}
-		public IActionResult CreateMethod()
-		{
-			TempData["UserName"] = HttpContext.Session.GetString("UserName");
-            TempData["Access"] = HttpContext.Session.GetString("Access");
+            TempData["Permission"] = "";
 
+            // Fetch all Units for dropdown
+            ViewBag.UnitList = db.UnitPrices
+                .Select(u => new { u.UnitId, u.UnitCode })
+                .ToList();
 
-            if (HttpContext.Session.GetString("flag") == "true")
-			{
-				var userCode = HttpContext.Session.GetString("UserCode");
+            return View();
+        }
 
-				string methodname = "CreateMethod";
-
-				var permission = db.userPermissions.Where(u => u.UserCode.ToString() == userCode && u.MethodName == methodname).FirstOrDefault();
-				if (permission.View)
-				{
-					TempData["DeniedMessage"] = "";
-					return View();
-				}
-				else
-				{
-					TempData["DeniedMessage"] = "You do not have permission to access this page";
-					return View();
-				}
-			}
-			else
-			{
-				return RedirectToAction(nameof(Login));
-			}
-
-
-
-		}
+        // ==================== CREATE PAGE (POST) ====================
         [HttpPost]
-        public IActionResult CreateMethod(Method method)
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> CreateConsumeable(Consumeable model)
+        {
+            TempData["UserName"] = HttpContext.Session.GetString("UserName");
+            TempData["Access"] = HttpContext.Session.GetString("Access");
+
+            if (HttpContext.Session.GetString("flag") != "true")
+                return RedirectToAction(nameof(Login));
+
+            var methodName = "CreateConsumeable";
+            var usercode = HttpContext.Session.GetString("UserCode");
+
+            bool permission = await db.userPermissions
+                .Where(u => u.UserCode.ToString() == usercode && u.MethodName == methodName)
+                .Select(u => u.View)
+                .FirstOrDefaultAsync();
+
+            if (!permission)
+            {
+                TempData["Permission"] = "You do not have permission to access this page";
+                return View(model);
+            }
+
+            TempData["Permission"] = "";
+
+            if (ModelState.IsValid)
+            {
+                await db.Consumeables.AddAsync(model);
+                await db.SaveChangesAsync();
+
+                TempData["ToastMessage"] = "Consumeable created successfully.";
+                TempData["ToastType"] = "success";
+                return RedirectToAction("Consumeables");
+            }
+
+            // Reload dropdown if form invalid
+            ViewBag.UnitList = db.UnitPrices
+                .Select(u => new { u.UnitId, u.UnitCode })
+                .ToList();
+
+            return View(model);
+        }
+
+        // ==================== EDIT PAGE (GET) ====================
+        public async Task<IActionResult> UpdateConsumeable(int id)
+        {
+            TempData["UserName"] = HttpContext.Session.GetString("UserName");
+            TempData["Access"] = HttpContext.Session.GetString("Access");
+
+            if (HttpContext.Session.GetString("flag") != "true")
+                return RedirectToAction(nameof(Login));
+
+            var methodName = "UpdateConsumeable";
+            var usercode = HttpContext.Session.GetString("UserCode");
+
+            bool permission = await db.userPermissions
+                .Where(u => u.UserCode.ToString() == usercode && u.MethodName == methodName)
+                .Select(u => u.View)
+                .FirstOrDefaultAsync();
+
+            if (!permission)
+            {
+                TempData["Permission"] = "You do not have permission to access this page";
+                return View();
+            }
+
+            TempData["Permission"] = "";
+
+            var consumeable = await db.Consumeables.FirstOrDefaultAsync(c => c.CMID == id);
+            if (consumeable == null) return NotFound();
+
+            // Units dropdown
+            ViewBag.UnitList = db.UnitPrices
+                .Select(u => new { u.UnitId, u.UnitCode })
+                .ToList();
+
+            return View(consumeable);
+        }
+
+        // ==================== EDIT PAGE (POST) ====================
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> UpdateConsumeable(Consumeable model)
+        {
+            TempData["UserName"] = HttpContext.Session.GetString("UserName");
+            TempData["Access"] = HttpContext.Session.GetString("Access");
+
+            if (HttpContext.Session.GetString("flag") != "true")
+                return RedirectToAction(nameof(Login));
+
+            var methodName = "UpdateConsumeable";
+            var usercode = HttpContext.Session.GetString("UserCode");
+
+            bool permission = await db.userPermissions
+                .Where(u => u.UserCode.ToString() == usercode && u.MethodName == methodName)
+                .Select(u => u.View)
+                .FirstOrDefaultAsync();
+
+            if (!permission)
+            {
+                TempData["Permission"] = "You do not have permission to access this page";
+                return View(model);
+            }
+
+            TempData["Permission"] = "";
+
+            if (ModelState.IsValid)
+            {
+                db.Consumeables.Update(model);
+                await db.SaveChangesAsync();
+
+                TempData["ToastMessage"] = "Consumeable updated successfully.";
+                TempData["ToastType"] = "success";
+                return RedirectToAction("Consumeables");
+            }
+
+            ViewBag.UnitList = db.UnitPrices
+                .Select(u => new { u.UnitId, u.UnitCode })
+                .ToList();
+
+            return View(model);
+        }
+
+        // ==================== DELETE ====================
+        public async Task<IActionResult> DeleteConsumeable(int id)
+        {
+            TempData["UserName"] = HttpContext.Session.GetString("UserName");
+            TempData["Access"] = HttpContext.Session.GetString("Access");
+
+            if (HttpContext.Session.GetString("flag") != "true")
+                return RedirectToAction(nameof(Login));
+
+            var methodName = "DeleteConsumeable";
+            var usercode = HttpContext.Session.GetString("UserCode");
+
+            bool permission = await db.userPermissions
+                .Where(u => u.UserCode.ToString() == usercode && u.MethodName == methodName)
+                .Select(u => u.View)
+                .FirstOrDefaultAsync();
+
+            if (!permission)    
+            {
+                TempData["Permission"] = "You do not have permission to access this page";
+                return RedirectToAction("Consumeables");
+            }
+
+            TempData["Permission"] = "";
+
+            var consumeable = await db.Consumeables.FirstOrDefaultAsync(c => c.CMID == id);
+            if (consumeable == null) return NotFound();
+
+            db.Consumeables.Remove(consumeable);
+            await db.SaveChangesAsync();
+
+            TempData["ToastMessage"] = "Consumeable deleted successfully.";
+            TempData["ToastType"] = "error";
+            return RedirectToAction("Consumeables");
+        }
+        #endregion
+
+        #region StockTracking
+
+        [HttpGet]
+        public async Task<IActionResult> LowStock()
+        {
+            TempData["UserName"] = HttpContext.Session.GetString("UserName");
+            TempData["Access"] = HttpContext.Session.GetString("Access");
+
+            if (HttpContext.Session.GetString("flag") != "true")
+                return RedirectToAction(nameof(Login));
+
+            var methodName = "LowStock";
+            var usercode = HttpContext.Session.GetString("UserCode");
+
+            bool permission = await db.userPermissions
+                .Where(u => u.UserCode.ToString() == usercode && u.MethodName == methodName)
+                .Select(u => u.View)
+                .FirstOrDefaultAsync();
+
+            if (!permission)
+            {
+                TempData["Permission"] = "You do not have permission to access this page";
+                return View();
+            }
+
+            TempData["Permission"] = "";
+
+            // 🧮 Include Consumption in calculation
+            var lowStockReport = await db.StockTracking
+                .GroupBy(st => new { st.ItemId, st.ItemName })
+                .Select(g => new
+                {
+                    g.Key.ItemId,
+                    g.Key.ItemName,
+                    Purchased = g.Where(x => x.Source != null && x.Source.StartsWith("Purchase"))
+                                 .Sum(x => (decimal?)x.Qty) ?? 0m,
+
+                    SoldSum = g.Where(x => x.Source == "Sale")
+                               .Sum(x => (decimal?)x.Qty) ?? 0m,
+
+                    ConsumedSum = g.Where(x => x.Source == "Consumption" || x.Source == "Sale-Consumption")
+                                   .Sum(x => (decimal?)x.Qty) ?? 0m
+                })
+                .Select(x => new StockTrackingVM
+                {
+                    ItemId = x.ItemId,
+                    ItemName = x.ItemName ?? "Unknown Item",
+                    Purchased = x.Purchased,
+                    Sold = x.SoldSum,
+                    Consumed = x.ConsumedSum,
+                    Remaining = x.Purchased - (x.SoldSum + x.ConsumedSum)
+                })
+                .Where(x => x.Remaining <= 10)
+                .OrderBy(x => x.Remaining)
+                .ToListAsync();
+
+            return View(lowStockReport);
+        }
+
+
+        [HttpGet]
+        public async Task<IActionResult> StockTracking()
+        {
+            TempData["UserName"] = HttpContext.Session.GetString("UserName");
+            TempData["Access"] = HttpContext.Session.GetString("Access");
+
+            if (HttpContext.Session.GetString("flag") != "true")
+                return RedirectToAction(nameof(Login));
+
+            var methodName = "StockTracking";
+            var usercode = HttpContext.Session.GetString("UserCode");
+
+            bool permission = await db.userPermissions
+                .Where(u => u.UserCode.ToString() == usercode && u.MethodName == methodName)
+                .Select(u => u.View)
+                .FirstOrDefaultAsync();
+
+            if (!permission)
+            {
+                TempData["Permission"] = "You do not have permission to access this page";
+                return View();
+            }
+
+            TempData["Permission"] = "";
+
+            // 🧮 Include Consumption in stock calculations
+            var stockReport = await db.StockTracking
+                .GroupBy(st => new { st.ItemId, st.ItemName })
+                .Select(g => new
+                {
+                    g.Key.ItemId,
+                    g.Key.ItemName,
+                    Purchased = g.Where(x => x.Source != null && x.Source.StartsWith("Purchase"))
+                                 .Sum(x => (decimal?)x.Qty) ?? 0m,
+
+                    SoldSum = g.Where(x => x.Source == "Sale")
+                               .Sum(x => (decimal?)x.Qty) ?? 0m,
+
+                    ConsumedSum = g.Where(x => x.Source == "Consumption" || x.Source == "Sale-Consumption")
+                                   .Sum(x => (decimal?)x.Qty) ?? 0m
+                })
+                .Select(x => new StockTrackingVM
+                {
+                    ItemId = x.ItemId,
+                    ItemName = x.ItemName ?? "Unknown Item",
+                    Purchased = x.Purchased,
+                    Sold = x.SoldSum,
+                    Consumed = x.ConsumedSum,
+                    Remaining = x.Purchased - (x.SoldSum + x.ConsumedSum)
+                })
+                .OrderBy(x => x.ItemName)
+                .ToListAsync();
+
+            // ✅ Count low stock items (<=10)
+            ViewBag.LowStockCount = stockReport.Count(x => x.Remaining <= 10);
+
+            return View(stockReport);
+        }
+
+        #endregion
+
+
+
+        #region Purchase-Products
+
+        [HttpGet]
+        public async Task<JsonResult> GetItemPrices(int itemId)
+        {
+            var item = await db.items.FirstOrDefaultAsync(i => i.ItemId == itemId);
+            if (item != null)
+            {
+                return Json(new
+                {
+                    unitPrice = item.RecentUnitPrice ?? 0,
+                    sellingPrice = item.RetailPrice ?? 0
+                });
+            }
+
+            return Json(new { unitPrice = 0, sellingPrice = 0 });
+        }
+
+        [HttpGet]
+        public async Task<IActionResult> CreatePurchase()
         {
             TempData["UserName"] = HttpContext.Session.GetString("UserName");
             TempData["Access"] = HttpContext.Session.GetString("Access");
 
             if (HttpContext.Session.GetString("flag") == "true")
             {
-                // Step 1: Add the new method to the Methods table
+                var methodName = "CreatePurchase";
+                var usercode = HttpContext.Session.GetString("UserCode");
+
+                bool permission = await db.userPermissions
+                    .Where(u => u.UserCode.ToString() == usercode && u.MethodName == methodName)
+                    .Select(u => u.View)
+                    .FirstOrDefaultAsync();
+
+                if (permission)
+                {
+                    TempData["Permission"] = "";
+
+                    var suppliers = await db.suppliers
+                        .Select(s => new SelectListItem
+                        {
+                            Value = s.SupplierId.ToString(),
+                            Text = s.Name
+                        }).ToListAsync();
+
+                    var items = await db.items
+                        .Where(i => i.ItemType == "Beverages" || i.ItemType == "Consumable")
+                        .Select(i => new SelectListItem
+                        {
+                            Value = i.ItemId.ToString(),
+                            Text = i.ItemName
+                        }).ToListAsync();
+                    var consumeables = await db.Consumeables
+                   .Select(c => new SelectListItem
+                   {
+                       Value = c.CMID.ToString(),
+                       Text = c.CMName,
+                       // Use Text property only for display, we’ll add UnitPrice separately in a custom object
+                   }).ToListAsync();
+
+                    // Pass a dictionary for UnitPrice as ViewBag
+                    ViewBag.ConsumeablePrices = db.Consumeables
+                        .Select(c => new { c.CMID, UnitPrice = c.UnitPrice ?? 0 })
+                        .ToDictionary(c => c.CMID.ToString(), c => c.UnitPrice);
+
+
+
+                    var model = new PurchaseVM
+                    {
+                        PurchaseDate = DateTime.Now,
+                        PurchasedItems = new List<PurchasedItemVM> { new PurchasedItemVM() },
+                        Suppliers = suppliers,
+                        Items = items,
+                        Consumeables = consumeables 
+                    };
+
+
+                    return View(model);
+                }
+                else
+                {
+                    TempData["Permission"] = "You do not have permission to access this page";
+                    return View();
+                }
+            }
+            else
+            {
+                return RedirectToAction(nameof(Login));
+            }
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> CreatePurchase(PurchaseVM model)
+        {
+            TempData["UserName"] = HttpContext.Session.GetString("UserName");
+            TempData["Access"] = HttpContext.Session.GetString("Access");
+
+            if (HttpContext.Session.GetString("flag") != "true")
+            {
+                return RedirectToAction(nameof(Login));
+            }
+
+            var methodName = "CreatePurchase";
+            var usercode = HttpContext.Session.GetString("UserCode");
+
+            bool permission = await db.userPermissions
+                .Where(u => u.UserCode.ToString() == usercode && u.MethodName == methodName)
+                .Select(u => u.View)
+                .FirstOrDefaultAsync();
+
+            if (!permission)
+            {
+                TempData["Permission"] = "You do not have permission to perform this action";
+                return View(model);
+            }
+
+            model.DealingPerson = HttpContext.Session.GetString("UserName");
+
+            if (string.IsNullOrEmpty(model.DealingPerson))
+            {
+                TempData["Error"] = "Session expired. Please login again.";
+                return RedirectToAction("Login", "Account");
+            }
+
+            await PopulateDropdownsAsync(model);
+
+            if (!ModelState.IsValid)
+            {
+                await PopulateDropdownsAsync(model);
+                return View(model);
+            }
+             
+            string purchaseType = model.OrderOrpurchase;
+            var random = new Random();
+            var invoiceNo = random.Next(100000, 999999);
+
+            // --- Save main purchase record ---
+            var purchase = new Inv_Purchase
+            {
+                SupplierId = model.SupplierId,
+                PurchaseDate = model.PurchaseDate,
+                InvoiceNo = invoiceNo,
+                Payment = model.Payment,
+                FlatDisc = model.FlatDisc,
+                Misc = model.Misc,
+                Commesion = model.Commesion,
+                DealingPerson = model.DealingPerson,
+                OrderOrpurchase = purchaseType
+            };
+
+            await db.Inv_Purchases.AddAsync(purchase);
+            await db.SaveChangesAsync();
+
+            // --- Save purchased items ---
+            foreach (var item in model.PurchasedItems.Where(x => x != null))
+            {
+                if (item.IsConsumeable)
+                {
+                    // update consumeables stock
+                    var consumeable = await db.Consumeables.FirstOrDefaultAsync(c => c.CMID == item.ItemId);
+                    if (consumeable != null)
+                    {
+                        // Update stock and price
+                        consumeable.UnitPrice = item.UnitPrice;
+                        consumeable.StockAletQty = (consumeable.StockAletQty ?? 0) + item.Qty;
+
+                        db.Consumeables.Update(consumeable);
+
+                        // Log stock movement
+                        var stock = new StockTracking
+                        {
+                            TrsID = purchase.PurchaseId,
+                            TrsDate = purchase.PurchaseDate,
+                            ItemId = consumeable.CMID,
+                            Qty = item.Qty,
+                            UnitId = consumeable.UnitId ?? default, // ensure Consumeables has UnitId
+                            Source = "Purchase",
+                            Price = item.UnitPrice,
+                            ItemName = consumeable.CMName
+                        };
+                       
+
+                        await db.StockTracking.AddAsync(stock);
+                    }
+                }
+                else
+                {
+                    // Save normal Inv_Item purchase
+                    var purchasedItem = new Inv_PurchasedItems
+                    {
+                        PurchaseId = purchase.PurchaseId,
+                        ItemId = item.ItemId,
+                        ItemName = item.ItemName,
+                        PurchaseType = purchaseType,
+                        Qty = item.Qty,
+                        UnitPrice = item.UnitPrice
+                    };
+                    await db.Inv_PurchasedItems.AddAsync(purchasedItem);
+
+                    var itemName = (await db.items.FirstOrDefaultAsync(i => i.ItemId == item.ItemId))?.ItemName ?? "";
+
+                    var stock = new StockTracking
+                    {
+                        TrsID = purchase.PurchaseId,
+                        TrsDate = purchase.PurchaseDate,
+                        ItemId = item.ItemId,
+                        Qty = item.Qty,
+                        Source = "Purchase",
+                        Price = item.UnitPrice,
+                        ItemName = itemName
+                    };
+                    await db.StockTracking.AddAsync(stock);
+                }
+            }
+
+            await db.SaveChangesAsync();
+
+            TempData["ToastMessage"] = "Purchase created successfully!";
+            TempData["ToastType"] = "success";
+            return RedirectToAction(nameof(StockTracking));
+        }
+
+
+       
+
+        private async Task PopulateDropdownsAsync(PurchaseVM model)
+        {
+            model.Suppliers = await db.suppliers
+                .Select(s => new SelectListItem
+                {
+                    Value = s.SupplierId.ToString(),
+                    Text = s.Name
+                }).ToListAsync();
+
+            model.Items = await db.items
+                .Select(i => new SelectListItem
+                {
+                    Value = i.ItemId.ToString(),
+                    Text = i.ItemName
+                }).ToListAsync();
+
+            var consumeables = await db.Consumeables.ToListAsync();
+
+            model.Consumeables = await db.Consumeables
+          .Select(c => new SelectListItem
+          {
+              Value = c.CMID.ToString(),
+              Text = c.CMName
+          }).ToListAsync();
+
+            ViewBag.ConsumeablePrices = await db.Consumeables
+                .ToDictionaryAsync(c => c.CMID.ToString(), c => c.UnitPrice ?? 0);
+        }
+
+        #region UnitPrice_Table
+        // GET: Index / List all units
+        public IActionResult UnitPrices()
+        {
+            var units = db.UnitPrices.ToList();
+            return View(units);
+        }
+
+        // GET: Create
+        public IActionResult CreateUnitPrice()
+        {
+            return View();
+        }
+
+        // POST: Create
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public IActionResult CreateUnitPrice(UnitPrice unit)
+        {
+            if (ModelState.IsValid)
+            {
+                db.UnitPrices.Add(unit);
+                db.SaveChanges();
+                TempData["ToastMessage"] = "Unit created successfully!";
+                TempData["ToastType"] = "success";
+                return RedirectToAction(nameof(Index));
+            }
+            return View(unit);
+        }
+
+        // GET: Edit
+        public IActionResult EditUnitPrice(int id)
+        {
+            var unit = db.UnitPrices.Find(id);
+            if (unit == null) return NotFound();
+            return View(unit);
+        }
+
+        // POST: Edit
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public IActionResult EditUnitPrice(UnitPrice unit)
+        {
+            if (ModelState.IsValid)
+            {
+                db.UnitPrices.Update(unit);
+                db.SaveChanges();
+                TempData["ToastMessage"] = "Unit updated successfully!";
+                TempData["ToastType"] = "success";
+                return RedirectToAction(nameof(Index));
+            }
+            return View(unit);
+        }
+
+        // GET: Delete
+        public IActionResult DeleteUnitPrice(int id)
+        {
+            var unit = db.UnitPrices.Find(id);
+            if (unit == null) return NotFound();
+
+            db.UnitPrices.Remove(unit);
+            db.SaveChanges();
+            TempData["ToastMessage"] = "Unit deleted successfully!";
+            TempData["ToastType"] = "success";
+            return RedirectToAction(nameof(Index));
+        }
+        #endregion
+
+
+        #endregion
+
+        #region RawMaterialConsumption
+        public IActionResult RawMaterialConsumption()
+        {
+            var data = db.RawMaterial_Items_Consumption
+                         .Include(r => r.Unit)  // ✅ OK
+                         .Include(r => r.Item)  // ✅ Correct - Don't do r.Item.ItemId
+                         .ToList();
+
+            return View(data);
+        }
+
+
+
+        // Create GET
+        public IActionResult CreateRawMaterialConsumption()
+        {
+            var vm = new RawMaterialConsumptionVM
+            {
+                Consumption = new RawMaterial_Items_Consumption(),
+                Consumeables = db.Consumeables.ToList(),
+                BaseItems = db.items.ToList()
+            };
+
+            return View(vm);
+        }
+        // Create POST
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public IActionResult CreateRawMaterialConsumption(RawMaterialConsumptionVM vm)
+        {
+            if (ModelState.IsValid)
+            {
+                // find the selected raw material
+                var selectedRaw = db.Consumeables
+                                    .FirstOrDefault(c => c.CMID == vm.Consumption.RMInv_ItemId);
+
+                if (selectedRaw != null)
+                {
+                    // set raw material name
+                    vm.Consumption.RMItemName = selectedRaw.CMName;
+
+                    // set the unit id from Consumeable
+                    vm.Consumption.UnitId = selectedRaw.UnitId;
+                }
+
+                db.RawMaterial_Items_Consumption.Add(vm.Consumption);
+                db.SaveChanges();
+
+                return RedirectToAction(nameof(RawMaterialConsumption));
+            }
+
+            // if invalid, repopulate dropdowns
+            vm.Consumeables = db.Consumeables.ToList();
+            vm.BaseItems = db.items.ToList();
+
+            return View(vm);
+        }
+
+
+
+        // Edit GET
+        public IActionResult EditRawMaterialConsumption(int id)
+        {
+            var record = db.RawMaterial_Items_Consumption.Find(id);
+            if (record == null) return NotFound();
+
+            // find the consumeable (raw material) related to this record
+            var relatedConsumeable = db.Consumeables
+                .FirstOrDefault(c => c.CMID == record.RMInv_ItemId);
+
+            if (relatedConsumeable != null)
+            {
+                // assign the correct UnitId to the record (in case not set before)
+                record.UnitId = relatedConsumeable.UnitId;
+            }
+
+            var vm = new RawMaterialConsumptionVM
+            {
+                Consumption = record,
+                Consumeables = db.Consumeables.ToList(),
+                BaseItems = db.items.ToList()
+            };
+
+            return View(vm);
+        }
+
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public IActionResult EditRawMaterialConsumption(RawMaterialConsumptionVM vm)
+        {
+            if (ModelState.IsValid)
+            {
+                // Fetch the existing record from DB
+                var existingRecord = db.RawMaterial_Items_Consumption
+                                       .FirstOrDefault(r => r.S_No == vm.Consumption.S_No);
+
+                if (existingRecord == null)
+                    return NotFound();
+
+                // Update editable fields
+                existingRecord.RMInv_ItemId = vm.Consumption.RMInv_ItemId;
+                existingRecord.BInv_ItemId = vm.Consumption.BInv_ItemId;
+                existingRecord.RMQTY = vm.Consumption.RMQTY;
+                existingRecord.Remarks = vm.Consumption.Remarks;
+
+                // Recompute RMItemName based on RMInv_ItemId (or fetch the actual name from related table)
+                var consumeable = db.Consumeables
+                                    .FirstOrDefault(c => c.CMID == vm.Consumption.RMInv_ItemId);
+                if (consumeable != null)
+                {
+                    existingRecord.RMItemName = consumeable.CMName; // or the property that stores item name
+                }
+
+                // Keep UnitId intact
+                // existingRecord.UnitId = existingRecord.UnitId;
+
+                db.SaveChanges();
+                return RedirectToAction(nameof(RawMaterialConsumption));
+            }
+
+            // Repopulate lists if validation fails
+            vm.Consumeables = db.Consumeables.ToList();
+            vm.BaseItems = db.items.ToList();
+            return View(vm);
+        }
+
+
+
+        public IActionResult DeleteRawMaterialConsumption(int id)
+        {
+            var record = db.RawMaterial_Items_Consumption.Find(id);
+            if (record == null) return NotFound();
+
+            db.RawMaterial_Items_Consumption.Remove(record);
+            db.SaveChanges();
+            return RedirectToAction(nameof(RawMaterialConsumption));
+        }
+
+        #endregion
+
+        #region Method
+        [HttpGet]
+        public async Task<IActionResult> MethodDetail()
+        {
+            TempData["UserName"] = HttpContext.Session.GetString("UserName");
+            TempData["Access"] = HttpContext.Session.GetString("Access");
+
+            if (HttpContext.Session.GetString("flag") == "true")
+            {
+                var methodName = "MethodDetail";
+                var usercode = HttpContext.Session.GetString("UserCode");
+
+                bool permission = await db.userPermissions
+                    .Where(u => u.UserCode.ToString() == usercode && u.MethodName == methodName)
+                    .Select(u => u.View)
+                    .FirstOrDefaultAsync();
+
+                if (permission)
+                {
+                    TempData["Permission"] = "";
+                    var methods = await db.methods.ToListAsync();
+                    return View(methods);
+                }
+                else
+                {
+                    TempData["Permission"] = "You do not have permission to access this page";
+                    return View();
+                }
+            }
+            else
+            {
+                return RedirectToAction(nameof(Login));
+            }
+        }
+        public async Task<IActionResult> CreateMethod()
+        {
+            TempData["UserName"] = HttpContext.Session.GetString("UserName");
+            TempData["Access"] = HttpContext.Session.GetString("Access");
+
+            if (HttpContext.Session.GetString("flag") == "true")
+            {
+                var userCode = HttpContext.Session.GetString("UserCode");
+                string methodname = "CreateMethod";
+
+                var permission = await db.userPermissions
+                    .FirstOrDefaultAsync(u => u.UserCode.ToString() == userCode && u.MethodName == methodname);
+
+                if (permission?.View == true)
+                {
+                    TempData["DeniedMessage"] = "";
+                    return View();
+                }
+                else
+                {
+                    TempData["DeniedMessage"] = "You do not have permission to access this page";
+                    return View();
+                }
+            }
+            else
+            {
+                return RedirectToAction(nameof(Login));
+            }
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> CreateMethod(Method method)
+        {
+            TempData["UserName"] = HttpContext.Session.GetString("UserName");
+            TempData["Access"] = HttpContext.Session.GetString("Access");
+
+            if (HttpContext.Session.GetString("flag") == "true")
+            {
+                // Step 1: Add the new method
                 Method _method = new()
                 {
                     MethodName = method.MethodName
                 };
-                db.methods.Add(_method);
-                db.SaveChanges(); // now _method.MethodId is available
+                await db.methods.AddAsync(_method);
+                await db.SaveChangesAsync();
 
-                // Step 2: Get all user codes from the Logins table
-                var allUserCodes = db.logins.Select(u => u.UserCode).ToList();
+                // Step 2: Get all user codes
+                var allUserCodes = await db.logins
+                    .Select(u => u.UserCode)
+                    .ToListAsync();
 
-                // Step 3: Add a permission entry for each user for the new method
+                // Step 3: Add a permission entry for each user
                 foreach (var userCode in allUserCodes)
                 {
                     UserPermissions newPermission = new()
@@ -740,14 +1677,14 @@ namespace Fastfood.Controllers
                         UserCode = userCode,
                         MethodId = _method.MethodId,
                         MethodName = _method.MethodName,
-                        View = false // Or true if needed
+                        View = false
                     };
-
-                    db.userPermissions.Add(newPermission);
+                    await db.userPermissions.AddAsync(newPermission);
                 }
 
-                // Step 4: Save all permissions
-                db.SaveChanges();
+                // Step 4: Save permissions
+                await db.SaveChangesAsync();
+
                 TempData["ToastType"] = "success";
                 TempData["ToastMessage"] = $"Method {method.MethodName} added successfully";
                 return RedirectToAction(nameof(MethodDetail));
@@ -759,45 +1696,44 @@ namespace Fastfood.Controllers
         }
 
         [HttpGet]
-		public IActionResult UpdateMethod(int Id)
-		{
-            TempData["Access"] = HttpContext.Session.GetString("Access");
-			TempData["UserName"] = HttpContext.Session.GetString("UserName");
-            if (HttpContext.Session.GetString("flag") == "true")
-			{
-				var userCode = HttpContext.Session.GetString("UserCode");
-
-				string methodname = "UpdateMethod";
-
-				var permission = db.userPermissions.Where(u => u.UserCode.ToString() == userCode && u.MethodName == methodname).FirstOrDefault();
-				if (permission.View)
-				{
-					var method = db.methods.Find(Id);
-					return View(method);
-				}
-				else
-				{
-					TempData["Permission"] = "You do not have permission to access this page";
-					return View();
-				}
-			}
-			else
-			{
-				return RedirectToAction(nameof(Login));
-			}
-
-
-
-		}
-        [HttpPost]
-        public IActionResult UpdateMethod(Method method)
+        public async Task<IActionResult> UpdateMethod(int Id)
         {
             TempData["Access"] = HttpContext.Session.GetString("Access");
             TempData["UserName"] = HttpContext.Session.GetString("UserName");
 
             if (HttpContext.Session.GetString("flag") == "true")
             {
-                // 1. Update the Method table
+                var userCode = HttpContext.Session.GetString("UserCode");
+                string methodname = "UpdateMethod";
+
+                var permission = await db.userPermissions
+                    .FirstOrDefaultAsync(u => u.UserCode.ToString() == userCode && u.MethodName == methodname);
+
+                if (permission?.View == true)
+                {
+                    var method = await db.methods.FindAsync(Id);
+                    return View(method);
+                }
+                else
+                {
+                    TempData["Permission"] = "You do not have permission to access this page";
+                    return View();
+                }
+            }
+            else
+            {
+                return RedirectToAction(nameof(Login));
+            }
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> UpdateMethod(Method method)
+        {
+            TempData["Access"] = HttpContext.Session.GetString("Access");
+            TempData["UserName"] = HttpContext.Session.GetString("UserName");
+
+            if (HttpContext.Session.GetString("flag") == "true")
+            {
                 Method _method = new()
                 {
                     MethodId = method.MethodId,
@@ -805,21 +1741,17 @@ namespace Fastfood.Controllers
                 };
                 db.methods.Update(_method);
 
-                // 2. Get matching permissions from UserPermission table
-                var matchingPermissions = db.userPermissions
+                var matchingPermissions = await db.userPermissions
                     .Where(up => up.MethodId == method.MethodId)
-                    .ToList();
+                    .ToListAsync();
 
-                // 3. Update the MethodName in those permission records
                 foreach (var permission in matchingPermissions)
                 {
                     permission.MethodName = method.MethodName;
                 }
 
-                // 4. Save all changes
-                db.SaveChanges();
+                await db.SaveChangesAsync();
 
-                // 5. Success Toast
                 TempData["ToastType"] = "success";
                 TempData["ToastMessage"] = $"Method {method.MethodName} and related permissions updated successfully";
 
@@ -831,8 +1763,7 @@ namespace Fastfood.Controllers
             }
         }
 
-
-        public IActionResult DeleteMethod(int Id)
+        public async Task<IActionResult> DeleteMethod(int Id)
         {
             TempData["Access"] = HttpContext.Session.GetString("Access");
             TempData["UserName"] = HttpContext.Session.GetString("UserName");
@@ -842,30 +1773,26 @@ namespace Fastfood.Controllers
                 var methodName = "DeleteMethod";
                 var usercode = HttpContext.Session.GetString("UserCode");
 
-                bool permission = db.userPermissions
+                bool permission = await db.userPermissions
                     .Where(u => u.UserCode.ToString() == usercode && u.MethodName == methodName)
                     .Select(u => u.View)
-                    .FirstOrDefault();
+                    .FirstOrDefaultAsync();
 
                 if (permission)
                 {
                     TempData["Permission"] = "";
 
-                    // Find the method
-                    var method = db.methods.Find(Id);
+                    var method = await db.methods.FindAsync(Id);
                     if (method != null)
                     {
-                        // Delete related UserPermissions by MethodId
-                        var permissionsToDelete = db.userPermissions
+                        var permissionsToDelete = await db.userPermissions
                             .Where(p => p.MethodId == Id)
-                            .ToList();
+                            .ToListAsync();
 
                         db.userPermissions.RemoveRange(permissionsToDelete);
-
-                        // Delete the method
                         db.methods.Remove(method);
 
-                        db.SaveChanges();
+                        await db.SaveChangesAsync();
 
                         TempData["ToastType"] = "success";
                         TempData["ToastMessage"] = $"Method {method.MethodName} and related permissions deleted successfully";
@@ -885,11 +1812,12 @@ namespace Fastfood.Controllers
             }
         }
 
-		 
-		#endregion
 
-		#region Register
-		public IActionResult Register()
+
+        #endregion
+
+        #region Register
+        public IActionResult Register()
 		{
 			if (HttpContext.Session.GetString("flag") == "true")
 			{
@@ -988,7 +1916,7 @@ namespace Fastfood.Controllers
 					TempData["UserName"] = user.Name;
 					TempData["Access"] = user.Access;
 					TempData["loginmessage"] = "Welcome To the System";
-					return RedirectToAction("Index");
+					return RedirectToAction("Dashboard");
 
 				}
 				else
@@ -1018,112 +1946,120 @@ namespace Fastfood.Controllers
 
 		#region User Permissions
 		[HttpGet]
-		public IActionResult UsersDetail()
-		{
-			TempData["UserName"] = HttpContext.Session.GetString("UserName");
-			if (HttpContext.Session.GetString("flag") == "true")
-			{
-				var permission = HttpContext.Session.GetString("Access");
-				if (permission.TrimEnd() == "Admin")
-				{
-					var users = db.logins.ToList();
-					TempData["Permission"] = "";
-					return View(users);
-				}
-				else
-				{
-					TempData["Permission"] = "Access Denied\nOnly Admin can Access it";
-					return View();
-				}
-			}
-			else
-			{
-				return RedirectToAction(nameof(Login));
-			}
-		}
+        public async Task<IActionResult> UsersDetail()
+        {
+            TempData["UserName"] = HttpContext.Session.GetString("UserName");
+
+            if (HttpContext.Session.GetString("flag") == "true")
+            {
+                var permission = HttpContext.Session.GetString("Access");
+
+                if (permission?.TrimEnd() == "Admin")
+                {
+                    var users = await db.logins.ToListAsync();
+                    TempData["Permission"] = "";
+                    return View(users);
+                }
+                else
+                {
+                    TempData["Permission"] = "Access Denied\nOnly Admin can Access it";
+                    return View();
+                }
+            }
+            else
+            {
+                return RedirectToAction(nameof(Login));
+            }
+        }
+
+        [HttpGet]
+        public async Task<IActionResult> AssignPermissions(Guid id)
+        {
+            TempData["UserName"] = HttpContext.Session.GetString("UserName");
+
+            if (HttpContext.Session.GetString("flag") == "true")
+            {
+                var permission = HttpContext.Session.GetString("Access");
+
+                if (permission?.TrimEnd() == "Admin")
+                {
+                    var user = await db.logins.FindAsync(id);
+
+                    if (user == null)
+                    {
+                        TempData["Permission"] = "User not found.";
+                        return RedirectToAction("UsersDetail");
+                    }
+ 
+                    var permissions = await db.userPermissions
+                                              .Where(u => u.UserCode == id)
+                                              .ToListAsync();
+
+                    AssignPermissionVM permissionVM = new AssignPermissionVM
+                    {
+                        user = user,
+                        permissions = permissions  
+                    };
+
+                    TempData["Permission"] = "";
+                    return View(permissionVM);
+                }
+                else
+                {
+                    TempData["Permission"] = "Access Denied. Only Admin can Access it.";
+                    return View();
+                }
+            }
+            else
+            {
+                return RedirectToAction(nameof(Login));
+            }
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> AssignPermissions(AssignPermissionVM permission)
+        {
+            TempData["UserName"] = HttpContext.Session.GetString("UserName");
+
+            if (HttpContext.Session.GetString("flag") == "true")
+            {
+                List<UserPermissions> permits = new();
+
+                foreach (var item in permission.permissions)
+                {
+                    permits.Add(new UserPermissions
+                    {
+                        PermissionId = item.PermissionId,
+                        UserCode = item.UserCode,
+                        MethodId = item.MethodId,
+                        MethodName = item.MethodName,
+                        View = item.View
+                    });
+                }
+
+                db.userPermissions.UpdateRange(permits);
+                await db.SaveChangesAsync();
+
+                var firstMethod = permission.permissions.FirstOrDefault()?.MethodName;
+                var userCode = permission.permissions.FirstOrDefault()?.UserCode;
+
+                TempData["ToastType"] = "success";
+                TempData["ToastMessage"] = $"Permissions  updated successfully!";
+
+                return RedirectToAction(nameof(AssignPermissions), new { id = userCode });
+            }
+            else
+            {
+                return RedirectToAction(nameof(Login));
+            }
+        }
 
 
+        #endregion
 
-		public IActionResult AssignPermissions(Guid id)
-		{
-			TempData["UserName"] = HttpContext.Session.GetString("UserName");
-			if (HttpContext.Session.GetString("flag") == "true")
-			{
-				var permission = HttpContext.Session.GetString("Access");
-				if (permission.TrimEnd() == "Admin")
-				{
-					AssignPermissionVM permissionVM = new();
-					List<UserPermissions> listper = new List<UserPermissions>();
-					var User = db.logins.Find(id);
-					var permissions = db.userPermissions.Where(u => u.UserCode == id).ToList();
+        #region Users
 
-					foreach (var item in permissions)
-					{
-						UserPermissions user = new();
-						user.PermissionId = item.PermissionId;
-						user.UserCode = item.UserCode;
-						user.MethodId = item.MethodId;
-						user.MethodName = item.MethodName;
-						user.View = item.View;
-
-						listper.Add(user);
-					}
-
-					permissionVM.permissions = listper;
-					permissionVM.user = User;
-
-
-					TempData["Permission"] = "";
-					return View(permissionVM);
-
-				}
-				else
-				{
-					TempData["Permission"] = "Access Denied Only Admin can Access it";
-					return View();
-				}
-			}
-			else
-			{
-				return RedirectToAction(nameof(Login));
-			}
-
-
-		}
-		[HttpPost]
-		public IActionResult AssignPermissions(AssignPermissionVM permission)
-		{
-			TempData["UserName"] = HttpContext.Session.GetString("UserName");
-			if (HttpContext.Session.GetString("flag") == "true")
-			{
-				List<UserPermissions> permits = new List<UserPermissions>();
-				foreach (var item in permission.permissions)
-				{
-					UserPermissions permit = new();
-					permit.PermissionId = item.PermissionId;
-					permit.UserCode = item.UserCode;
-					permit.MethodId = item.MethodId;
-					permit.MethodName = item.MethodName;
-					permit.View = item.View;
-
-					permits.Add(permit);
-
-				}
-				db.userPermissions.UpdateRange(permits);
-				db.SaveChanges();
-
-				return RedirectToAction(nameof(AssignPermissions));
-			}
-			else
-			{
-				return RedirectToAction(nameof(Login));
-			}
-		}
-		#endregion
-
-		#region Users
-
-		public IActionResult UserList()
+        public IActionResult UserList()
 		{
             TempData["Access"] = HttpContext.Session.GetString("Access");
 			TempData["UserName"] = HttpContext.Session.GetString("UserName");
@@ -1188,293 +2124,288 @@ namespace Fastfood.Controllers
 			return RedirectToAction(nameof(UserList));
 		}
 
-		#endregion
+        #endregion
 
-		#region Suppliers
+        #region Suppliers
 
-		public IActionResult Suppliers()
-		{
+        public IActionResult Suppliers()
+        {
 
-			TempData["UserName"] = HttpContext.Session.GetString("UserName");
+            TempData["UserName"] = HttpContext.Session.GetString("UserName");
             TempData["Access"] = HttpContext.Session.GetString("Access");
 
             if (HttpContext.Session.GetString("flag") == "true")
-			{
-				var methodName = "Suppliers";
-				var usercode = HttpContext.Session.GetString("UserCode");
+            {
+                var methodName = "Suppliers";
+                var usercode = HttpContext.Session.GetString("UserCode");
 
-				bool permission = db.userPermissions.Where(u => u.UserCode.ToString() == usercode && u.MethodName == methodName).Select(u => u.View).FirstOrDefault();
-				if (permission)
-				{
-					TempData["Permission"] = "";
-					var suppliers = db.suppliers.ToList();
-					return View(suppliers);
-				}
-				else
-				{
-					TempData["Permission"] = "You do not have permission to access this page";
-					return View();
-				}
-			}
-			else
-			{
-				return RedirectToAction(nameof(Login));
-			}
-		}
+                bool permission = db.userPermissions.Where(u => u.UserCode.ToString() == usercode && u.MethodName == methodName).Select(u => u.View).FirstOrDefault();
+                if (permission)
+                {
+                    TempData["Permission"] = "";
+                    var suppliers = db.suppliers.ToList();
+                    return View(suppliers);
+                }
+                else
+                {
+                    TempData["Permission"] = "You do not have permission to access this page";
+                    return View();
+                }
+            }
+            else
+            {
+                return RedirectToAction(nameof(Login));
+            }
+        }
 
-		// GET: Create Supplier
-		public IActionResult CreateSuppliers()
-		{
+        // GET: Create Supplier
+        public IActionResult CreateSuppliers()
+        {
             TempData["Access"] = HttpContext.Session.GetString("Access");
-			TempData["UserName"] = HttpContext.Session.GetString("UserName");
+            TempData["UserName"] = HttpContext.Session.GetString("UserName");
 
             // Check if user is logged in
             if (HttpContext.Session.GetString("flag") == "true")
-			{
-				var methodName = "CreateSuppliers";
-				var usercode = HttpContext.Session.GetString("UserCode");
+            {
+                var methodName = "CreateSuppliers";
+                var usercode = HttpContext.Session.GetString("UserCode");
 
-				var permission = db.userPermissions
-					.Where(u => u.UserCode.ToString() == usercode && u.MethodName == methodName)
-					.Select(u => u.View)
-					.FirstOrDefault();
+                var permission = db.userPermissions
+                    .Where(u => u.UserCode.ToString() == usercode && u.MethodName == methodName)
+                    .Select(u => u.View)
+                    .FirstOrDefault();
 
-				if (permission)
-				{
-					TempData["Permission"] = "";
-					return View();
-				}
-				else
-				{
-					TempData["Permission"] = "You do not have permission to access this page.";
-					return RedirectToAction("AccessDenied"); // Optional: create AccessDenied.cshtml
-				}
-			}
-			else
-			{
-				return RedirectToAction(nameof(Login));
-			}
-		}
+                if (permission)
+                {
+                    TempData["Permission"] = "";
+                    return View();
+                }
+                else
+                {
+                    TempData["Permission"] = "You do not have permission to access this page.";
+                    return RedirectToAction("AccessDenied"); 
+                }
+            }
+            else
+            {
+                return RedirectToAction(nameof(Login));
+            }
+        }
 
 
-		// POST: Create Supplier
-		[HttpPost]
-		[ValidateAntiForgeryToken]
-		public IActionResult CreateSuppliers(Suppliers newcat)
-		{
+        // POST: Create Supplier
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public IActionResult CreateSuppliers(Suppliers newcat)
+        {
             TempData["Access"] = HttpContext.Session.GetString("Access");
-			TempData["UserName"] = HttpContext.Session.GetString("UserName");
+            TempData["UserName"] = HttpContext.Session.GetString("UserName");
             if (HttpContext.Session.GetString("flag") == "true")
-			{
-				if (!ModelState.IsValid)
-				{
-					return View(newcat);
-				}
+            {
+                if (!ModelState.IsValid)
+                {
+                    return View(newcat);
+                }
 
-				Suppliers suppliers = new Suppliers
-				{
-					Name = newcat.Name,
-					Address = newcat.Address,
-					MobileNo = newcat.MobileNo,
-					SupplierCreationDate = DateTime.Now,
-					NIC = newcat.NIC,
-					Email = newcat.Email,
-					Citycode = newcat.Citycode,
-					Countrycode = newcat.Countrycode,
-					PhoneNo = newcat.PhoneNo,
-					Accountid = new Random().Next(100000, 999999), // Random 6-digit Account ID
-					DbStatus = true,
-					Operation_Type = newcat.Operation_Type
-				};
+                Suppliers suppliers = new Suppliers
+                {
+                    Name = newcat.Name,
+                    Address = newcat.Address,
+                    MobileNo = newcat.MobileNo,
+                    SupplierCreationDate = DateTime.Now,
+                    NIC = newcat.NIC,
+                    Email = newcat.Email,
+                    Citycode = newcat.Citycode,
+                    Countrycode = newcat.Countrycode,
+                    PhoneNo = newcat.PhoneNo,
+                    Accountid = new Random().Next(100000, 999999), // Random 6-digit Account ID
+                    DbStatus = true,
+                    Operation_Type = newcat.Operation_Type
+                };
 
-				db.suppliers.Add(suppliers);
-				db.SaveChanges();
+                db.suppliers.Add(suppliers);
+                db.SaveChanges();
                 TempData["ToastType"] = "success";
                 TempData["ToastMessage"] = "Supplier added successfully!";
                 return RedirectToAction("Suppliers");
             }
-			else
-			{
-				return RedirectToAction(nameof(Login));
-			}
-		}
+            else
+            {
+                return RedirectToAction(nameof(Login));
+            }
+        }
 
-		[HttpGet]
-		public IActionResult UpdateSupplier(int Id)
-		{
-            TempData["Access"] = HttpContext.Session.GetString("Access");
-			TempData["UserName"] = HttpContext.Session.GetString("UserName");
-
-            if (HttpContext.Session.GetString("flag") == "true")
-			{
-				var userCode = HttpContext.Session.GetString("UserCode");
-				string methodname = "UpdateSupplier";
-
-				var permission = db.userPermissions
-					.FirstOrDefault(u => u.UserCode.ToString() == userCode && u.MethodName == methodname);
-
-				if (permission != null && permission.View)
-				{
-					var suppliers = db.suppliers.Find(Id);
-					return View(suppliers);
-				}
-				else
-				{
-					TempData["Permission"] = "You do not have permission to access this page";
-					return View();
-				}
-			}
-			else
-			{
-				return RedirectToAction(nameof(Login));
-			}
-		}
-
-
-
-		[HttpPost]
-		public IActionResult UpdateSupplier(Suppliers supplier)
-		{
-            TempData["Access"] = HttpContext.Session.GetString("Access");
-			TempData["UserName"] = HttpContext.Session.GetString("UserName");
-
-            if (HttpContext.Session.GetString("flag") == "true")
-			{
-				if (ModelState.IsValid)
-				{
-					var existingSupplier = db.suppliers.Find(supplier.SupplierId);
-					if (existingSupplier != null)
-					{
-						// Update only the allowed/modifiable fields
-						existingSupplier.Name = supplier.Name;
-						existingSupplier.Address = supplier.Address;
-						existingSupplier.PhoneNo = supplier.PhoneNo;
-						existingSupplier.MobileNo = supplier.MobileNo;
-						existingSupplier.SupplierCreationDate = supplier.SupplierCreationDate;
-						existingSupplier.NIC = supplier.NIC;
-						existingSupplier.Email = supplier.Email;
-						existingSupplier.Citycode = supplier.Citycode;
-						existingSupplier.Countrycode = supplier.Countrycode;
-						existingSupplier.Accountid = supplier.Accountid;
-						existingSupplier.DbStatus = supplier.DbStatus;
-						existingSupplier.ByDefault = supplier.ByDefault;
-						existingSupplier.Modifier = HttpContext.Session.GetString("UserName");
-
-						existingSupplier.Operation_Type = supplier.Operation_Type;
-
-						db.suppliers.Update(existingSupplier);
-						db.SaveChanges();
-                        TempData["ToastType"] = "success";
-                        TempData["ToastMessage"] = $"Update complete: {existingSupplier.Name} is now up to date.";
-						return RedirectToAction("Suppliers");
-                      
-					}
-					else
-					{
-						TempData["Error"] = "Supplier not found.";
-						return RedirectToAction(nameof(Suppliers));
-					}
-				}
-				else
-				{
-					TempData["Error"] = "Validation failed.";
-					return View(supplier);
-				}
-			}
-			else
-			{
-				return RedirectToAction(nameof(Login));
-			}
-		}
-
-		public IActionResult DeleteSupplier(int Id)
-		{
-            TempData["Access"] = HttpContext.Session.GetString("Access");
-			TempData["UserName"] = HttpContext.Session.GetString("UserName");
-            if (HttpContext.Session.GetString("flag") == "true")
-			{
-				var methodName = "DeleteSupplier";
-				var usercode = HttpContext.Session.GetString("UserCode");
-
-				bool permission = db.userPermissions.Where(u => u.UserCode.ToString() == usercode && u.MethodName == methodName).Select(u => u.View).FirstOrDefault();
-				if (permission)
-				{
-					TempData["Permission"] = "";
-					var supplier = db.suppliers.Find(Id);
-					db.suppliers.Remove(supplier);
-					db.SaveChanges();
-					TempData["ToastType"] = "error";
-					TempData["ToastMessage"] = $"Deleted successfully: {supplier.Name} has been removed.";
-					return RedirectToAction("Suppliers");
-
-				}
-				else
-				{
-					TempData["Permission"] = "You do not have permission to access this page";
-					return View();
-				}
-			}
-			else
-			{
-				return RedirectToAction(nameof(Login));
-			}
-		}
-
-        #endregion
-
-
-        #region Profile
-
-        public IActionResult Profile()
+        [HttpGet]
+        public IActionResult UpdateSupplier(int Id)
         {
             TempData["Access"] = HttpContext.Session.GetString("Access");
             TempData["UserName"] = HttpContext.Session.GetString("UserName");
-            var userId = HttpContext.Session.GetString("UserCode");  
-            if (string.IsNullOrEmpty(userId))
-                return RedirectToAction("Login");
 
-            Guid userGuid = Guid.Parse(userId);
-            var user = db.logins.FirstOrDefault(u => u.UserCode == userGuid);
-            if (user == null)
-                return NotFound();
+            if (HttpContext.Session.GetString("flag") == "true")
+            {
+                var userCode = HttpContext.Session.GetString("UserCode");
+                string methodname = "UpdateSupplier";
 
-            return View(user);
-        }
+                var permission = db.userPermissions
+                    .FirstOrDefault(u => u.UserCode.ToString() == userCode && u.MethodName == methodname);
 
-
-        // GET: Show the change password form
-        public IActionResult UpdateProfile()
-        {
-            TempData["Access"] = HttpContext.Session.GetString("Access");
-            string userCode = HttpContext.Session.GetString("UserCode");
-            if (string.IsNullOrEmpty(userCode))
-                return RedirectToAction("Login");
-
-            Guid guid = Guid.Parse(userCode);
-            var user = db.logins.FirstOrDefault(u => u.UserCode == guid);
-            if (user == null)
-                return NotFound();
-
-            return View(user);
+                if (permission != null && permission.View)
+                {
+                    var suppliers = db.suppliers.Find(Id);
+                    return View(suppliers);
+                }
+                else
+                {
+                    TempData["Permission"] = "You do not have permission to access this page";
+                    return View();
+                }
+            }
+            else
+            {
+                return RedirectToAction(nameof(Login));
+            }
         }
 
 
 
         [HttpPost]
-        public IActionResult UpdateProfile(Register register, string currentPassword, string newPassword, string confirmPassword)
+        public IActionResult UpdateSupplier(Suppliers supplier)
         {
-            // Get the logged-in user from session
+            TempData["Access"] = HttpContext.Session.GetString("Access");
+            TempData["UserName"] = HttpContext.Session.GetString("UserName");
+
+            if (HttpContext.Session.GetString("flag") == "true")
+            {
+                if (ModelState.IsValid)
+                {
+                    var existingSupplier = db.suppliers.Find(supplier.SupplierId);
+                    if (existingSupplier != null)
+                    {
+                        // Update only the allowed/modifiable fields
+                        existingSupplier.Name = supplier.Name;
+                        existingSupplier.Address = supplier.Address;
+                        existingSupplier.PhoneNo = supplier.PhoneNo;
+                        existingSupplier.MobileNo = supplier.MobileNo;
+                        existingSupplier.SupplierCreationDate = supplier.SupplierCreationDate;
+                        existingSupplier.NIC = supplier.NIC;
+                        existingSupplier.Email = supplier.Email;
+                        existingSupplier.Citycode = supplier.Citycode;
+                        existingSupplier.Countrycode = supplier.Countrycode;
+                        existingSupplier.Accountid = supplier.Accountid;
+                        existingSupplier.DbStatus = supplier.DbStatus;
+                        existingSupplier.ByDefault = supplier.ByDefault;
+                        existingSupplier.Modifier = HttpContext.Session.GetString("UserName");
+
+                        existingSupplier.Operation_Type = supplier.Operation_Type;
+
+                        db.suppliers.Update(existingSupplier);
+                        db.SaveChanges();
+                        TempData["ToastType"] = "success";
+                        TempData["ToastMessage"] = $"Update complete: {existingSupplier.Name} is now up to date.";
+                        return RedirectToAction("Suppliers");
+
+                    }
+                    else
+                    {
+                        TempData["Error"] = "Supplier not found.";
+                        return RedirectToAction(nameof(Suppliers));
+                    }
+                }
+                else
+                {
+                    TempData["Error"] = "Validation failed.";
+                    return View(supplier);
+                }
+            }
+            else
+            {
+                return RedirectToAction(nameof(Login));
+            }
+        }
+
+        public IActionResult DeleteSupplier(int Id)
+        {
+            TempData["Access"] = HttpContext.Session.GetString("Access");
+            TempData["UserName"] = HttpContext.Session.GetString("UserName");
+            if (HttpContext.Session.GetString("flag") == "true")
+            {
+                var methodName = "DeleteSupplier";
+                var usercode = HttpContext.Session.GetString("UserCode");
+
+                bool permission = db.userPermissions.Where(u => u.UserCode.ToString() == usercode && u.MethodName == methodName).Select(u => u.View).FirstOrDefault();
+                if (permission)
+                {
+                    TempData["Permission"] = "";
+                    var supplier = db.suppliers.Find(Id);
+                    db.suppliers.Remove(supplier);
+                    db.SaveChanges();
+                    TempData["ToastType"] = "error";
+                    TempData["ToastMessage"] = $"Deleted successfully: {supplier.Name} has been removed.";
+                    return RedirectToAction("Suppliers");
+
+                }
+                else
+                {
+                    TempData["Permission"] = "You do not have permission to access this page";
+                    return View();
+                }
+            }
+            else
+            {
+                return RedirectToAction(nameof(Login));
+            }
+        }
+
+        #endregion
+
+
+        #region Profile
+        public async Task<IActionResult> Profile()
+        {
+            TempData["Access"] = HttpContext.Session.GetString("Access");
+            TempData["UserName"] = HttpContext.Session.GetString("UserName");
+
+            var userId = HttpContext.Session.GetString("UserCode");
+            if (string.IsNullOrEmpty(userId))
+                return RedirectToAction("Login");
+
+            Guid userGuid = Guid.Parse(userId);
+            var user = await db.logins.FirstOrDefaultAsync(u => u.UserCode == userGuid);
+            if (user == null)
+                return NotFound();
+
+            return View(user);
+        }
+
+        // GET: Show the change password form
+        public async Task<IActionResult> UpdateProfile()
+        {
+            TempData["Access"] = HttpContext.Session.GetString("Access");
+
             string userCode = HttpContext.Session.GetString("UserCode");
             if (string.IsNullOrEmpty(userCode))
                 return RedirectToAction("Login");
 
             Guid guid = Guid.Parse(userCode);
-            var user = db.logins.FirstOrDefault(u => u.UserCode == guid);
-
+            var user = await db.logins.FirstOrDefaultAsync(u => u.UserCode == guid);
             if (user == null)
                 return NotFound();
 
-            // Step 1: Verify current password
+            return View(user);
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> UpdateProfile(Register register, string currentPassword, string newPassword, string confirmPassword)
+        {
+            string userCode = HttpContext.Session.GetString("UserCode");
+            if (string.IsNullOrEmpty(userCode))
+                return RedirectToAction("Login");
+
+            Guid guid = Guid.Parse(userCode);
+            var user = await db.logins.FirstOrDefaultAsync(u => u.UserCode == guid);
+            if (user == null)
+                return NotFound();
+
             if (user.Password != currentPassword)
             {
                 TempData["Error"] = "Current password is incorrect.";
@@ -1482,27 +2413,22 @@ namespace Fastfood.Controllers
                 return View(user);
             }
 
-            // ✅ Step 2: Check if new password is same as current one
             if (newPassword == currentPassword)
             {
                 TempData["Error"] = "New password cannot be the same as the current password.";
                 TempData["ToastType"] = "error";
-
                 return View(user);
             }
 
-            // Step 3: Confirm both new passwords match
             if (newPassword != confirmPassword)
             {
                 TempData["Error"] = "New passwords do not match.";
                 TempData["ToastType"] = "error";
-
                 return View(user);
             }
 
-            // Step 4: Update password
             user.Password = newPassword;
-            db.SaveChanges();
+            await db.SaveChangesAsync();
 
             TempData["PasswordUpdated"] = "Password updated successfully";
             TempData["ToastType"] = "success";
@@ -1516,7 +2442,7 @@ namespace Fastfood.Controllers
 
         #region Contact
 
-		public IActionResult Contact()
+        public IActionResult Contact()
 		{
             TempData["Access"] = HttpContext.Session.GetString("Access");
             TempData["UserName"] = HttpContext.Session.GetString("UserName");

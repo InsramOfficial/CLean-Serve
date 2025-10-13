@@ -1,4 +1,4 @@
-using Fastfood.Data;
+﻿using Fastfood.Data;
 using Fastfood.Models;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.EntityFrameworkCore;
@@ -6,23 +6,31 @@ using Microsoft.EntityFrameworkCore;
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
-builder.Services.AddControllersWithViews();
-var con = builder.Configuration.GetConnectionString("Default_Connection").ToString();
+var con = builder.Configuration.GetConnectionString("Default_Connection")!;
 builder.Services.AddDbContext<DataDbContext>(options => options.UseSqlServer(con));
+builder.Services.AddDbContext<DataDbContext>(options =>
+    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection"))
+           .EnableSensitiveDataLogging()
+           .LogTo(Console.WriteLine, LogLevel.Information));
+
 builder.Services.AddSession(options =>
 {
-    options.IdleTimeout = TimeSpan.FromDays(2); 
+    options.IdleTimeout = TimeSpan.FromDays(2);
     options.Cookie.HttpOnly = true;
     options.Cookie.IsEssential = true;
 });
 
+builder.Services.AddControllersWithViews(options =>
+{
+    options.Filters.Add<LowStockNotificationFilter>(); // ✅ Register globally
+});
+
 builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
-	.AddCookie(options =>
-	{
-		options.LoginPath = "/ControlPanel/Login";
-		//options.AccessDeniedPath = "/ControlPanel/AccessDenied";
-	});
-//builder.Services.AddControllersWithViews();
+    .AddCookie(options =>
+    {
+        options.LoginPath = "/ControlPanel/Login";
+        //options.AccessDeniedPath = "/ControlPanel/AccessDenied";
+    });
 
 var app = builder.Build();
 
@@ -30,30 +38,26 @@ var app = builder.Build();
 if (!app.Environment.IsDevelopment())
 {
     app.UseExceptionHandler("/Home/Error");
-    // The default HSTS value is 30 days. You may want to change this for production scenarios, see https://aka.ms/aspnetcore-hsts.
     app.UseHsts();
 }
 
 app.UseHttpsRedirection();
 app.UseStaticFiles();
+
 app.UseRouting();
-app.UseSession();        
+
+app.UseSession();
 app.UseAuthentication();
-app.UseAuthorization();
-app.UseMiddleware<UserIdMiddleware>(); 
+app.UseAuthorization();  // ✅ Keep only once
+app.UseMiddleware<UserIdMiddleware>();
 
-app.UseAuthorization();
-
+// ✅ Define multiple routes properly
 app.MapControllerRoute(
-    name: "default",
+    name: "home",
     pattern: "{controller=Home}/{action=HomeIndex}/{id?}");
 
-//app.UseEndpoints(endpoints =>
-//{
-//    endpoints.MapControllerRoute(
-//        name: "customRoute",
-//        pattern: "mycustomroute/{controller=Home}/{action=HomeIndex}/{id?}"
-//    );
-//});
+app.MapControllerRoute(
+    name: "controlpanel",
+    pattern: "{controller=ControlPanel}/{action=Index}/{id?}");
 
 app.Run();

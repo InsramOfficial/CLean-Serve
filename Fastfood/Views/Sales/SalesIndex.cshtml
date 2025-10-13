@@ -1,6 +1,8 @@
-﻿
-@{
+﻿@{
     var permission = TempData["Permission"] as string;
+    var ToastMessage = TempData["ToastMessage"] as string;
+    var ToastType = TempData["ToastType"] as string;
+
 }
 
 @if (!string.IsNullOrEmpty(permission))
@@ -34,6 +36,13 @@ else
         <link href="~/css/salesformstyle.css" rel="stylesheet">
         <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" integrity="sha512-DTOQO9RWCH3ppGqcWaEA1BIZOC6xxalwEsw9c2QQeAIftl+Vegovlnee1c9QX4TctnWMn13TZye+giMm8e2LwA==" crossorigin="anonymous" referrerpolicy="no-referrer" />
         <style>
+
+            body {
+                background: linear-gradient(to bottom, #9dd2e7, #ffffff); /* example */
+                background-repeat: no-repeat; /* prevent tiling */
+                background-attachment: fixed; /* keep background fixed */
+                background-size: cover; /* stretch to fit */
+            }
 
             .discount-cell input {
                 border: 0;
@@ -139,24 +148,6 @@ else
             .custom-close-btn {
                 border-radius: 3px;
             }
-            /* //css for the dropdown */
-            /* #customerList {
-                        position: absolute;
-                        width: 100%;
-                        z-index: 1000;
-                        color: black;
-                        background: white;
-                        list-style: none;
-                    }
-
-                        #customerList li {
-                            padding: 8px;
-                            cursor: pointer;
-                        }
-
-                            #customerList li:hover {
-                                background-color: #f1f1f1;
-                            } */
 
             .outer-container {
                 margin-top: -15px;
@@ -213,6 +204,14 @@ else
     </head>
 
     <body>
+        @if (!string.IsNullOrEmpty(ToastMessage))
+        {
+            <script>
+                document.addEventListener("DOMContentLoaded", function () {
+                    showToast("@ToastMessage", "@ToastType");
+                });
+            </script>
+        }
         <div class="outer-container no-margin-top">
             <form id="customer-form" class="mt-2 mb-3" method="post" asp-action="SaveBillDetail" asp-controller="Sales">
                 <div class="container-fluid">
@@ -285,7 +284,7 @@ else
                                             <!-- Adjusted width to col-sm-9 -->
                                             <div class="input-group">
                                                 <!-- Adjust the column width as needed -->
-                                                <input asp-for="Clientdetails.Name" type="text" id="searchInput" class="form-control" placeholder="Search Customer..." autocomplete="off">
+                                                <input asp-for="Clientdetails.Name" type="text" id="searchInput" required class="form-control" placeholder="Search Customer..." autocomplete="off">
                                                 <div class="input-group-append">
                                                     <button type="button" class="btn btn-primary" onclick="OpenCreateCustomerModal()">
                                                         <i class="fas fa-plus"></i>
@@ -463,7 +462,7 @@ else
                                         <table class="table">
                                             <tr>
                                                 <td>
-                                                    <input asp-for="CashReceived" id="cashreceived" class="form-control" type="text" placeholder="Cash Received">
+                                                    <input asp-for="CashReceived" id="cashreceived" class="form-control" type="text" required placeholder="Cash Received">
                                                 </td>
                                                 <td>
                                                     <input asp-for="CashPayBack" id="payback" class="form-control" type="text" placeholder="Pay Back" readonly>
@@ -564,503 +563,429 @@ else
         <script src="https://cdn.jsdelivr.net/npm/popperjs/core@2.5.3/dist/umd/popper.min.js"></script>
         <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
         <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
-
         <script>
+            /* =======================
+               Toast Helper
+               ======================= */
+                            document.getElementById("customer-form").addEventListener("submit", function (e) {
+                    // Check if cart table has rows inside tbody
+                    const cartTable = document.querySelector("#Mycarttable tbody");
+                    if (!cartTable || cartTable.rows.length === 0) {
+                        e.preventDefault(); // stop form submission
+                        showToast("Cart is empty. Please add items before saving.", "error");
+                        return false;
+                    }
+                });
+                      function showToast(message, type) {
+                    const bg = type === "error" ? "bg-danger" : "bg-success";
+                    const toast = document.createElement("div");
+                    toast.className = `toast align-items-center text-white ${bg} border-0 show position-fixed top-0 end-0 m-3`;
+                    toast.role = "alert";
+                    toast.innerHTML = `
+                        <div class="d-flex">
+                            <div class="toast-body">${message}</div>
+                            <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+                        </div>`;
+                    document.body.appendChild(toast);
 
-            $(document).ready(function () {
-                $('.clickable-cell').on('click', function () {
-                    const categoryId = $(this).data('category');
-                    const categoryName = $(this).data('category-name');
+                    setTimeout(() => toast.remove(), 3000);
+                }
 
-                    if ($('#container1').is(':visible')) {
-                        $('#container1').hide();
-                        breadcrumbText = '<a href="#" class="breadcrumb-link" data-category="Category">Category</a>  ';
-                        breadcrumbText += '<span class="breadcrumb-text active-category">' + categoryName + '</span>  ';
-                        $('#breadcrumb').html(breadcrumbText);
+            /* =======================
+               Global Stock Data
+               ======================= */
+            let stockRecords = [];
+                     function loadStockRecords() {
+                return $.get('/Sales/GetAvailableStockRecords')
+                    .done(data => {
+                        stockRecords = data || [];
+                        console.log("✅ Fresh stock loaded:", stockRecords);
+
+                        // After loading fresh stock, check cart items
+                        refreshCartStock();   // <-- added here
+                    })
+                    .fail(() => showToast("Failed to load stock records.", "error"));
+            }
+
+
+          function fetchAvailableStock(itemId, itemType, itemName) {
+                if (itemType !== "Beverages") {
+                    console.log("👉 Non-Beverage item clicked:", { itemId, itemName, itemType });
+                    return $.Deferred().resolve(9999);
+                }
+
+                const normalizedName = (itemName || "").trim().toLowerCase();
+                console.log("🔍 Checking stock for clicked item:", { itemId, itemName: normalizedName });
+
+                let matchedRecord = null;
+
+                stockRecords.forEach(r => {
+                  console.log("   📦 Backend record:", { ItemId: r.itemId, ItemName: r.itemName, availableQty: r.availableQty });
+
+                    if (r.itemId == itemId) {
+                        console.log("   ✅ Matched by ItemId!", { itemId, backendId: r.itemId });
+                        matchedRecord = r;
+                    } else if (r.itemName && r.itemName.trim().toLowerCase() === normalizedName) {
+                        console.log("   ✅ Matched by ItemName!", { clickedName: normalizedName, backendName: r.ItemName.trim().toLowerCase() });
+                        matchedRecord = r;
+                    }
+                });
+
+                    if (!matchedRecord) {
+                        console.warn("❌ No matching record found for:", { itemId, itemName: normalizedName });
                     } else {
-                        $('#container2').hide();
-                        $('#breadcrumb').html('<a href="#" class="breadcrumb-link active-category" data-category="Category">Category</a>  ');
-                    }
-                });
-
-                $('#breadcrumb').on('click', '.breadcrumb-link', function () {
-                    const category = $(this).data('category');
-
-                    if (category === 'Category') {
-                        $('#container2').hide();
-                        $('#container1').show();
-                        $('#breadcrumb').html('<a href="#" class="breadcrumb-link" data-category="Category">Category</a> ');
-                    } else {
-                        breadcrumbText = breadcrumbText.substring(0, breadcrumbText.indexOf(category) + category.length + 2);
-                        $('#breadcrumb').html(breadcrumbText);
-                        $('#container2').hide();
-                        $('#container1').show();
-                    }
-                });
-
-                $('.clickable-cell').on('click', function () {
-                    const categoryId = $(this).data('category');
-
-                    function copyContainer3ToContainer2() {
-                        $('#container2 .content').empty();
-                        const data = $('#container3 .content').html();
-                        $('#container2 .content').html(data);
-
-                        $('#container2 .content .clickable-cell[data-remarks]').on('click', function () {
-                            const remarks = $(this).data('remarks');
-                        });
+                        console.log("✔ Final matched record:", matchedRecord);
                     }
 
-                    function initializeContainers() {
-                        $('#container1').hide();
-                        $('#container2').hide();
-                        $('#container3').show();
+    return $.Deferred().resolve(matchedRecord ? matchedRecord.availableQty : 0).promise();
+}
 
-                        $('#category2-button').on('click', function () {
-                            copyContainer3ToContainer2();
-                        });
-                    }
 
-                    $(document).ready(function () {
-                        initializeContainers();
-                    });
-
-                    if (categoryId == 2) {
-                        $('#filteredtable').empty();
-                        $('#container1').hide();
-                        $('#container2').hide();
-                        $('#container3').show();
-
-                        $('.clickable-cell[data-remarks]').on('click', function () {
-                            const remarks = $(this).data('remarks');
-                            $.ajax({
-                                url: '/Sales/FilterItemsByRemarks',
-                                method: 'GET',
-                                data: { remarks: remarks },
-                                success: function (data) {
-                                    $('#filteredtable').empty();
-                                    let row = $('<tr>');
-
-                                    data.forEach(function (item, index) {
-                                        const cell = `<td class="clickable-cell tablecell button-like align-items-center" data-item="${item.itemId}">${item.itemName}</td>`;
-                                        row.append(cell);
-
-                                        if ((index + 1) % 4 === 0) {
-                                            $('#filteredtable').append(row);
-                                            row = $('<tr>');
-                                        }
-                                    });
-
-                                    if (row.find('td').length > 0) {
-                                        $('#filteredtable').append(row);
-                                    }
-                                }
-                            });
-                        });
-                    } else {
-                        $.ajax({
-                            url: '/Sales/FilterItems',
-                            method: 'GET',
-                            data: { categoryId: categoryId },
-                            success: function (data) {
-                                $('#filteredtable').empty();
-                                let row = $('<tr>');
-
-                                data.forEach(function (item, index) {
-                                    const cell = `<td class="clickable-cell tablecell button-like align-items-center" data-item="${item.itemId}">${item.itemName}</td>`;
-                                    row.append(cell);
-
-                                    if ((index + 1) % 4 === 0) {
-                                        $('#filteredtable').append(row);
-                                        row = $('<tr>');
-                                    }
-                                });
-
-                                if (row.find('td').length > 0) {
-                                    $('#filteredtable').append(row);
-                                }
-
-                                $('#container1').hide();
-                                $('#container3').hide();
-                                $('#container2').show();
-                            },
-                        });
-                    }
+            /* =======================
+               Cart Calculations
+               ======================= */
+            function updateGrossTotal() {
+                let grossTotal = 0;
+                $('#Mycarttable tbody tr').each(function () {
+                    grossTotal += parseFloat($(this).find('td:eq(4) input').val()) || 0;
                 });
+                $('#grosstotal').val(grossTotal.toFixed(2));
+                updateFinalTotal();
+                updatePayback();
+            }
 
-                $('#container1').on('click', '.clickable-cell', function () {
-                    const categoryId = $(this).data('category');
-                    const categoryName = $(this).data('category-name');
+            function updateTotalPrice(row) {
+                const unitPrice = parseFloat(row.find('td:eq(1) input').val());
+                const quantity = parseInt(row.find('td:eq(2) input').val(), 10);
+                const discount = parseFloat(row.find('td:eq(3) input').val());
+                const netTotal = (unitPrice * quantity) - (discount * quantity);
+                row.find('td:eq(4) input').val(netTotal.toFixed(2));
+                updateGrossTotal();
+            }
 
-                    $('#container1').hide();
-                    $('#container2').show();
+            function updateFinalTotal() {
+                const grosstotal = parseFloat($('#grosstotal').val()) || 0;
+                const billDiscountTotal = parseFloat($('#billDiscountTotal').val()) || 0;
+                $('#Finaltotal').val((grosstotal - billDiscountTotal).toFixed(2));
+            }
 
-                    const breadcrumbText = '<a href="#" class="breadcrumb-link" data-category="Category">Category</a>  ' +
-                        '<a href="#" class="breadcrumb-link" data-category="' + categoryId + '">' + categoryName + '</a>';
+            function updatePayback() {
+                const cashReceived = parseFloat($('#cashreceived').val()) || 0;
+                const finalTotal = parseFloat($('#Finaltotal').val()) || 0;
+                $('#payback').val((cashReceived - finalTotal).toFixed(2));
+            }
 
-                    $('#breadcrumb').html(breadcrumbText);
-                });
+            /* =======================
+               Table Cell Builders
+               ======================= */
+            function addCell(row, propertyName, type, index, defaultValue, cellClass) {
+                const input = $('<input>').attr({ type, name: `DynamicData[${index}].${propertyName}`, value: defaultValue }).prop('readonly', true);
+                row.append($('<td></td>').addClass(cellClass || '').append(input));
+            }
 
+            function addNetTotalCell(row, index, unitPrice, quantity, discount) {
+                const netTotal = (unitPrice * quantity) - discount;
+                const input = $('<input>').attr({ type: 'text', name: `DynamicData[${index}].NetTotal`, value: netTotal.toFixed(2) }).addClass('net-total').prop('readonly', true);
+                row.append($('<td></td>').append(input));
+            }
 
-                $('#container2').on('click', '.clickable-cell', function () {
-                    const itemId = $(this).data('item');
-                    console.log("Item is Clicked" + itemId);
-                    $.ajax({
-                        url: '/Sales/FilterItemsByItemId',
-                        method: 'GET',
-                        data: { itemId: itemId },
-                        success: function (data) {
-                            data.forEach(function (item) {
-                                console.log(item.itemName);
-                                var itemName = item.itemName;
-                                var unitPrice = item.recentUnitPrice;
-                                var quantity = 1;
-                                var discount = 20;
-                                var itemId = item.itemId;
-                                // Find the last row in the dynamicDataTable and fill it with the selected data
-                                var lastRow = $('#Mycarttable tbody tr:last');
-                                var index = lastRow.index() + 1; // Increment the index for the new row
-                                var newRow = $('<tr></tr>');
-
-                                // Adding a cell with a default value of "ExampleItem"
-                                addCell(newRow, "ItemName", "text", index, itemName, "item-name-cell");
-
-                                addCell(newRow, "Price", "text", index, unitPrice, "price-cell");
-
-                                addQuantityCell(newRow, "Quantity", index, quantity);
-                                addCell(newRow, "Discount", "text", index, discount, "discount-cell");
-
-                                // Adding a Net Total cell with default value 0.00
-                                addNetTotalCell(newRow, index, unitPrice, quantity, discount);
-
-                                addRemoveCell(newRow, index);
-
-                                addCell(newRow, "ItemId", "hidden", index, itemId);
-                                $('#Mycarttable tbody').append(newRow);
-                                updateGrossTotal();
-                                updatePayback();
-                            });
-                            $('#container1').hide();
-                            $('#container2').show();
-                        },
-                        error: function (error) {
-                            console.error('Error:', error);
-                        }
-                    });
-                });
-
-                function updateFinalTotal() {
-                    var grosstotal = parseFloat($('#grosstotal').val()) || 0;
-                    var billDiscountTotal = parseFloat($('#billDiscountTotal').val()) || 0;
-
-                    var finaltotal = grosstotal - billDiscountTotal;
-
-                    // Update the Final Total input field
-                    $('#Finaltotal').val(finaltotal.toFixed(2));
-                }
-                function updatePayback() {
-                    var cashReceived = parseFloat($('#cashreceived').val()) || 0;
-                    var finalTotal = parseFloat($('#Finaltotal').val()) || 0;
-
-                    var payback = cashReceived - finalTotal;
-                    // Update the Payback input field
-                    $('#payback').val(payback.toFixed(2));
-                }
-
-                // Example: Call this function when you update the CashReceived input field
-                $('#cashreceived').on('input', function () {
-                    // Update the Payback after changing the CashReceived
-                    updatePayback();
-                });
-                function addCell(row, propertyName, type, index, defaultValue, cellClass) {
-                    var cell = $('<td></td>').addClass(cellClass); // Add the specified class to the cell
-
-                    var input = $('<input>');
-                    input.attr({
-                        type: type,
-                        name: "DynamicData[" + index + "]." + propertyName,
-                        value: defaultValue
-                    });
-
-                    // Make the input readonly
-                    input.prop('readonly', true);
-
-                    cell.append(input);
-                    row.append(cell);
-                }
-
-
-                // Function to add Net Total cell
-                function addNetTotalCell(row, index, unitPrice, quantity, discount) {
-                    var cell = $('<td></td>');
-
-                    var netTotal = (unitPrice * quantity) - discount;
-
-                    var input = $('<input>').addClass(' net-total');
-                    input.attr({
-                        type: "text",
-                        name: "DynamicData[" + index + "].NetTotal",
-                        value: netTotal.toFixed(2)
-                    });
-
-                    // Make the input readonly
-                    input.prop('readonly', true);
-
-                    cell.append(input);
-                    row.append(cell);
-                }
-
-                // Function to update Gross Total by summing all Net Totals
-                function updateGrossTotal() {
-                    var grossTotal = 0;
-
-                    // Iterate through all rows in the table
-                    $('#Mycarttable tbody tr').each(function () {
-                        var netTotal = parseFloat($(this).find('td:eq(4) input').val()) || 0;
-                        grossTotal += netTotal;
-                    });
-
-                    // Update the Gross Total input field
-                    $('#grosstotal').val(grossTotal.toFixed(2));
-                    updateFinalTotal();
-                    updatePayback();
-                }
-                $('#billDiscountTotal').on('input', function () {
-                    // Update the Final Total after changing the billDiscountTotal
-                    updateFinalTotal();
-                });
-                // Function to update Total Price based on unit price and quantity
-                // Function to update Total Price based on unit price and quantity
-                function updateTotalPrice(row) {
-                    var unitPrice = parseFloat(row.find('td:eq(1) input').val());
-                    var quantity = parseInt(row.find('td:eq(2) input').val(), 10);
-                    var discount = parseFloat(row.find('td:eq(3) input').val()); // Add this line to get the discount
-
-                    var totalPrice = unitPrice * quantity;
-                    var netTotal = totalPrice - (discount * quantity); // Calculate the net total
-
-                    // Update the correct input fields for Total Price and Net Total
-                    row.find('td:eq(4) input').val(netTotal.toFixed(2));
-                    // row.find('td:eq(5) input').val(totalPrice.toFixed(2));
-
+            function addRemoveCell(row) {
+                const removeButton = $('<button type="button"></button>').addClass('btn btn-danger btn-sm').html('<i class="bi bi-trash"></i>').on('click', () => {
+                    row.remove();
                     updateGrossTotal();
-                }
-                function addQuantityCell(row, propertyName, index, defaultValue) {
-                    var cell = $('<td></td>');
+                });
+                row.append($('<td></td>').append(removeButton));
+            }
 
-                    var input = $('<input>').addClass('normal-text quantity').css({
-                        'font-size': '12px', // Set font size here
-                        'margin': '0 2px' // Add some right margin
-                    });
+                        function addQuantityCell(row, propertyName, index, defaultValue, itemId, itemType, itemName) {
+                                    const input = $('<input type="text">')
+                            .attr("name", `DynamicData[${index}].${propertyName}`) // ✅ FIX
+                            .addClass('normal-text quantity')
+                            .val(defaultValue || 1)
+                            .css({ 'font-size': '12px', 'margin': '0 2px' })
+                            .prop('readonly', true);
+                        const incrementButton = $('<button type="button">+</button>').addClass('quantity-button increment-button').css('font-size', '16px');
+                        const decrementButton = $('<button type="button">-</button>').addClass('quantity-button decrement-button').css('font-size', '16px');
 
-                    input.attr({
-                        type: "text",
-                        name: "DynamicData[" + index + "]." + propertyName,
-                        value: defaultValue || "1"
-                    });
-                    input.prop('readonly', true);
-                    var incrementButton = $('<button></button>').text("+").attr("type", "button").addClass('quantity-button increment-button').css('font-size', '16px'); // Set font size here
-                    incrementButton.on("click", function () {
-                        var currentValue = parseInt(input.val(), 10);
-                        input.val(currentValue + 1);
+                incrementButton.on('click', () => {
+                    const current = parseInt(input.val(), 10);
+                    fetchAvailableStock(itemId, itemType, itemName).done(available => {
+                        let inCartQty = 0;
+                        $('#Mycarttable tbody tr').each(function () {
+                            if ($(this).data('item-id') == itemId) inCartQty += parseInt($(this).find('td:eq(2) input').val(), 10) || 0;
+                        });
 
-                        // Update the total price and net total when the quantity changes
+                        if (itemType === "Beverages" && inCartQty + 1 > available) {
+                            showToast(`Only ${available} in stock. You already have ${inCartQty} in cart.`, 'error');
+                            return;
+                        }
+
+                        input.val(current + 1);
                         updateTotalPrice(row);
                     });
+                });
 
-                    var decrementButton = $('<button></button>').text("-").attr("type", "button").addClass('quantity-button decrement-button').css('font-size', '16px'); // Set font size here
-                    decrementButton.on("click", function () {
-                        var currentValue = parseInt(input.val(), 10);
-                        if (currentValue > 0) {
-                            input.val(currentValue - 1);
+                decrementButton.on('click', () => {
+                    const current = parseInt(input.val(), 10);
+                    if (current > 0) { input.val(current - 1); updateTotalPrice(row); }
+                });
 
-                            // Update the total price and net total when the quantity changes
+                row.append($('<td></td>').append($('<div></div>').addClass('quantity-buttons-container').append(decrementButton, input, incrementButton)));
+            }
+
+            /* =======================
+               Add Item to Cart
+               ======================= */
+                     function addItemToCart(item) {
+                const { itemId, itemName, recentUnitPrice: unitPrice, itemType = "Other" } = item;
+                const discount = 20;
+
+                // Always fetch fresh stock from server (no cache)
+                fetchAvailableStock(itemId, itemType, itemName).done(availableStock => {
+                    if (itemType === "Beverages" && availableStock <= 0) {
+                        showToast("Item is out of stock.", "error");
+                        return;
+                    }
+
+                    const existingRow = $('#Mycarttable tbody tr').filter(function () {
+                        return $(this).find('input[name*=".ItemId"]').val() == itemId;
+                    });
+
+                    if (existingRow.length > 0) {
+                        const qtyInput = existingRow.find('td:eq(2) input');
+                        let currentQty = parseInt(qtyInput.val(), 10) || 0;
+
+                        // ✅ Recheck cart qty against *latest available stock*
+                        let inCartQty = 0;
+                        $('#Mycarttable tbody tr').each(function () {
+                            if ($(this).data('item-id') == itemId)
+                                inCartQty += parseInt($(this).find('td:eq(2) input').val(), 10) || 0;
+                        });
+
+                        if (itemType === "Beverages" && inCartQty + 1 > availableStock) {
+                            showToast(`Only ${availableStock} left in stock. You already have ${inCartQty} in cart.`, "error");
+                            return;
+                        }
+
+                        qtyInput.val(currentQty + 1);
+                        updateTotalPrice(existingRow);
+
+                        // highlight
+                        existingRow.css('background-color', '#d1ffd1');
+                        setTimeout(() => existingRow.css('background-color', ''), 200);
+                    } else {
+                        // ✅ If stock is already 0, block adding
+                        if (itemType === "Beverages" && availableStock < 1) {
+                            showToast("This item just went out of stock.", "error");
+                            return;
+                        }
+
+                        const lastRow = $('#Mycarttable tbody tr:last');
+                        const index = lastRow.index() + 1;
+                        const newRow = $('<tr></tr>').attr({ 'data-item-id': itemId, 'data-item-type': itemType });
+
+                        addCell(newRow, "ItemName", "text", index, itemName, "item-name-cell");
+                        addCell(newRow, "Price", "text", index, unitPrice, "price-cell");
+                        addQuantityCell(newRow, "Quantity", index, 1, itemId, itemType, itemName);
+                        addCell(newRow, "Discount", "text", index, discount, "discount-cell");
+                        addNetTotalCell(newRow, index, unitPrice, 1, discount);
+                        addRemoveCell(newRow);
+                        addCell(newRow, "ItemId", "hidden", index, itemId);
+
+                        $('#Mycarttable tbody').append(newRow);
+                    }
+
+                    updateGrossTotal();
+                    updatePayback();
+                }).fail(() => {
+                    showToast("Failed to check stock. Please try again.", "error");
+                });
+            }
+
+            /* =======================
+               Populate Items Table
+               ======================= */
+            function populateFilteredTable(data) {
+                $('#filteredtable').empty();
+                let row = $('<tr>');
+                data.forEach((item, index) => {
+                    const cell = `<td class="clickable-cell tablecell button-like align-items-center" data-item="${item.itemId}">${item.itemName}</td>`;
+                    row.append(cell);
+                    if ((index + 1) % 4 === 0) { $('#filteredtable').append(row); row = $('<tr>'); }
+                });
+                if (row.find('td').length > 0) $('#filteredtable').append(row);
+            }
+
+            /* =======================
+               Refresh Cart Stock
+               ======================= */
+            function refreshCartStock() {
+                $('#Mycarttable tbody tr').each(function () {
+                    const row = $(this);
+                    const itemId = row.data('item-id');
+                    const itemType = row.data('item-type');
+                    const itemName = row.find('td:eq(0) input').val();
+
+                    fetchAvailableStock(itemId, itemType, itemName).done(stock => {
+                        const qtyInput = row.find('td:eq(2) input');
+                        const currentQty = parseInt(qtyInput.val(), 10);
+                        if (itemType === "Beverages" && currentQty > stock) {
+                            showToast(`Stock updated: Only ${stock} available for ${itemName}`, 'error');
+                            qtyInput.val(stock);
                             updateTotalPrice(row);
                         }
                     });
-
-                    // Wrap buttons and quantity display in a div for horizontal alignment
-                    var buttonsContainer = $('<div></div>').addClass('quantity-buttons-container');
-                    buttonsContainer.append(decrementButton, input, incrementButton);
-
-                    // Clear the existing content in the cell and append the new content
-                    cell.empty().append(buttonsContainer);
-
-                    // Append the cell to the row
-                    row.append(cell);
-                    updateGrossTotal();
-                }
-
-
-
-                function addRemoveCell(row, index) {
-                    var cell = $('<td></td>');
-
-                    var removeButton = $('<button></button>').addClass('btn btn-danger btn-sm').attr({
-                        type: "button",
-                        "data-index": index
-                    }).on("click", function () {
-                        removeRow(row, index);
-                    });
-
-                    // Add Bootstrap trash icon to the button
-                    var icon = $('<i></i>').addClass('bi bi-trash');
-                    removeButton.append(icon);
-
-                    cell.append(removeButton);
-
-                    row.append(cell);
-                }
-
-
-                function removeRow(row, index) {
-                    row.remove();
-                    updateGrossTotal();
-                    // You may need to adjust the index of other rows based on your logic
-                }
-            });
-            var creditCardRadio = document.getElementById('creditCardRadio');
-            var authIdContainer = document.getElementById('authIdContainer');
-
-            // Function to handle the radio button click event
-            function handlePaymentMethodChange() {
-                // Check if the credit card radio button is checked
-                if (creditCardRadio.checked) {
-                    // Show the Auth ID box
-                    authIdContainer.style.display = 'table-cell';
-                } else {
-                    // Hide the Auth ID box if another payment method is selected
-                    authIdContainer.style.display = 'none';
-                }
-                openCreditCardModal();
-            }
-
-            // Function to show the credit card modal
-            function openCreditCardModal() {
-                $('#creditCardModal').modal('show');
-            }
-
-            // Event listener for the Close button in the modal
-            $('#closeModalButton, #closeModelButtonTop').click(function () {
-                // Close the modal
-                $('#creditCardModal').modal('hide');
-            });
-            // For Customer Create
-            function OpenCreateCustomerModal() {
-                $('#CreateCustomerModel').modal('show');
-            }
-            $('#closeModelTopButton').click(function () {
-                // Close the modal
-                $('#CreateCustomerModel').modal('hide');
-            });
-            $('#closeModalButtonBottom').click(function () {
-                // Close the modal
-                $('#CreateCustomerModel').modal('hide');
-            });
-
-            // Handle clicking on a customer in the list
-            $(document).on("click", "#CardDetailCheck", function () {
-                var Bin = document.getElementById('CardBinNumber').value;
-                console.log(Bin);
-                console.log("Check button Clicked");
-                $.ajax({
-                    url: '/Sales/BankDetail',
-                    method: 'GET',
-                    data: { Bin: Bin },
-                    success: function (data) {
-                        console.log(data);
-                        console.log(data.bankName);
-                        $('#BankName').val(data.bankName);
-                        $('#CardType').val(data.cardType);
-                        $('#CardCat').val(data.card_Cat);
-                        $('#Discount').val(data.discountPercent);
-                        console.log(data.discountPercent);
-
-                    },
-                    error: function (error) {
-                        console.error('Error:', error);
-                    }
                 });
+            }
 
-            });
-
-            $(document).on("click", "#ApplyCardPayment", function () {
-                console.log("You have clicked apply button");
-
-                // Get the card number value
-                var cardNumber = $('#cardNumber').val();
-
-                // Get the error message element
-                var cardNumberError = $('#cardNumberError');
-
-                // Check if the card number is empty
-                if (!cardNumber) {
-                    // Display the error message
-                    cardNumberError.text("Card number is required.");
-                    return; // Stop further execution
-                }
-
-                // Clear the error message if the card number is not empty
-                cardNumberError.text("");
-
-                // Continue with the rest of your code if the card number is not empty
-                var finalTotal = parseFloat($('#Finaltotal').val()) || 0;
-                var discountPercent = document.getElementById('Discount').value;
-                var discountedTotal = finalTotal - (finalTotal * (discountPercent / 100));
-
-                console.log(discountedTotal);
-                $('#Finaltotal').val(discountedTotal.toFixed(2));
-                $('#creditCardModal').modal('hide');
-            });
-
+            /* =======================
+               Document Ready
+               ======================= */
             $(document).ready(function () {
-                var customerList = $('.customer-item');
-                var resultContainer = $('#resultContainer');
-                var dropdown = $('#customer-list');
+                $.ajaxSetup({ cache: false });
+                loadStockRecords();
 
-                // Hide dropdown when clicking outside
-                $(document).on('click', function (e) {
-                    if (!dropdown.is(e.target) && dropdown.has(e.target).length === 0) {
-                        customerList.hide();
-                        resultContainer.empty();
-                    }
+                let breadcrumbText = '';
+
+                // Category click
+                $(document).on('click', '.clickable-cell[data-category]', function () {
+                    const categoryId = $(this).data('category'), categoryName = $(this).data('category-name');
+                    $('#container1,#container2,#container3').hide();
+                    breadcrumbText = `<a href="#" class="breadcrumb-link" data-category="Category">Category</a>  <span class="breadcrumb-text active-category">${categoryName}</span>  `;
+                    $('#breadcrumb').html(breadcrumbText);
+                    if (categoryId == 2) $('#container3').show();
+                    else $.get('/Sales/FilterItems', { categoryId }, populateFilteredTable).done(() => $('#container2').show());
                 });
 
-                $('#searchInput').on('input', function () {
-                    var searchTerm = $(this).val().toLowerCase();
-
-                    customerList.each(function () {
-                        var customerName = $(this).text().toLowerCase();
-                        if (customerName.includes(searchTerm)) {
-                            $(this).show();
-                        } else {
-                            $(this).hide();
-                        }
-                    });
-
-                    // Display a message when no matching records are found
-                    if ($('#customer-list .customer-item:visible').length === 0) {
-                        resultContainer.html('<p class="text-danger">No matching records found.</p>');
-                    } else {
-                        resultContainer.empty();
-                    }
+                // Breadcrumb click
+                $('#breadcrumb').on('click', '.breadcrumb-link', function (e) {
+                    e.preventDefault();
+                    if ($(this).data('category') === 'Category') { $('#container1').show(); $('#container2,#container3').hide(); $('#breadcrumb').html('<a href="#" class="breadcrumb-link" data-category="Category">Category</a> '); }
                 });
 
-                $('#customer-list').on('click', '.customer-item', function () {
-                    var itemName = $(this).text().trim(); // Use trim() to remove whitespace
-                    var clientId = $('#clientId').val();
-                    console.log("This is before clientID");
-                    console.log(clientId);
-                    $('#searchInput').val(itemName); // Display the name in the input field
-
-                    customerList.hide(); // Hide all items after clicking
-                    resultContainer.empty();
+                // Remarks click
+                $(document).on('click', '.clickable-cell[data-remarks]', function () {
+                    const remarks = $(this).data('remarks');
+                    $.get('/Sales/FilterItemsByRemarks', { remarks }, populateFilteredTable).done(() => $('#container2').show());
                 });
+
+                // Item click
+                $(document).on('click', '.clickable-cell[data-item]', function () {
+                    const itemId = $(this).data('item');
+                    $.get('/Sales/FilterItemsByItemId', { itemId }).done(data => (data || []).forEach(addItemToCart));
+                });
+
+                // Cash & Bill Discount
+                $('#cashreceived').on('input', updatePayback);
+                $('#billDiscountTotal').on('input', updateFinalTotal);
+
+                // Auto-refresh cart stock
+                setInterval(() => {
+                    loadStockRecords(); // reload latest stock from server
+                    refreshCartStock();
+                }, 5000);
+                              var customerList = $('.customer-item');
+                            var resultContainer = $('#resultContainer');
+                            var dropdown = $('#customer-list');
+                            $(document).on('click', function (e) {
+                                if (!dropdown.is(e.target) && dropdown.has(e.target).length === 0) {
+                                    customerList.hide();
+                                    resultContainer.empty();
+                                }
+                            });
+                            $('#searchInput').on('input', function () {
+                                var searchTerm = $(this).val().toLowerCase();
+                                customerList.each(function () {
+                                    var customerName = $(this).text().toLowerCase();
+                                    if (customerName.includes(searchTerm)) {
+                                        $(this).show();
+                                    } else {
+                                        $(this).hide();
+                                    }
+                                });
+                                if ($('#customer-list .customer-item:visible').length === 0) {
+                                    resultContainer.html('<p class="text-danger">No matching records found.</p>');
+                                } else {
+                                    resultContainer.empty();
+                                }
+                            });
+                            $('#customer-list').on('click', '.customer-item', function () {
+                                var itemName = $(this).text().trim();
+                                $('#searchInput').val(itemName);
+                                customerList.hide();
+                                resultContainer.empty();
+                            });
+
+                                        loadStockRecords();
+
+                // 2. After stock is loaded, refresh the cart
+                           loadStockRecords();
             });
+                         // === PAYMENT METHODS, CUSTOMER, MODALS (UNCHANGED) ===
+                        var creditCardRadio = document.getElementById('creditCardRadio');
+                        var authIdContainer = document.getElementById('authIdContainer');
+                        function handlePaymentMethodChange() {
+                            if (creditCardRadio.checked) {
+                                authIdContainer.style.display = 'table-cell';
+                            } else {
+                                authIdContainer.style.display = 'none';
+                            }
+                            openCreditCardModal();
+                        }
+                        function openCreditCardModal() {
+                            $('#creditCardModal').modal('show');
+                        }
+                        $('#closeModalButton, #closeModelButtonTop').click(function () {
+                            $('#creditCardModal').modal('hide');
+                        });
+                        function OpenCreateCustomerModal() {
+                            $('#CreateCustomerModel').modal('show');
+                        }
+                        $('#closeModelTopButton').click(function () {
+                            $('#CreateCustomerModel').modal('hide');
+                        });
+                        $('#closeModalButtonBottom').click(function () {
+                            $('#CreateCustomerModel').modal('hide');
+                        });
 
+                        $(document).on("click", "#CardDetailCheck", function () {
+                            var Bin = document.getElementById('CardBinNumber').value;
+                            console.log(Bin);
+                            $.ajax({
+                                url: '/Sales/BankDetail',
+                                method: 'GET',
+                                data: { Bin: Bin },
+                                success: function (data) {
+                                    $('#BankName').val(data.bankName);
+                                    $('#CardType').val(data.cardType);
+                                    $('#CardCat').val(data.card_Cat);
+                                    $('#Discount').val(data.discountPercent);
+                                },
+                                error: function (error) {
+                                    console.error('Error:', error);
+                                }
+                            });
+                        });
 
-
+                        $(document).on("click", "#ApplyCardPayment", function () {
+                            var cardNumber = $('#cardNumber').val();
+                            var cardNumberError = $('#cardNumberError');
+                            if (!cardNumber) {
+                                cardNumberError.text("Card number is required.");
+                                return;
+                            }
+                            cardNumberError.text("");
+                            var finalTotal = parseFloat($('#Finaltotal').val()) || 0;
+                            var discountPercent = document.getElementById('Discount').value;
+                            var discountedTotal = finalTotal - (finalTotal * (discountPercent / 100));
+                            $('#Finaltotal').val(discountedTotal.toFixed(2));
+                            $('#creditCardModal').modal('hide');
+                        });
         </script>
+
+        <!-- Toast container -->
+        <div id="toastContainer" class="toast-container position-fixed bottom-0 end-0 p-3" style="z-index:1080;"></div>
+
 
 
     </body>

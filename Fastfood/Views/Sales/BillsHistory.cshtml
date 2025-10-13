@@ -179,11 +179,47 @@ else
 														<a asp-action="Print" asp-controller="Sales" asp-route-Id="@item.SaleId" class="btn btn-outline-primary btn-rounded">
 															<i class="fas fa-print"></i> <!-- Use the print icon from Font Awesome -->
 														</a>
-														<a class="btn btn-outline-danger btn-rounded">
+														<!-- Delete Button (opens modal) -->
+														<button type="button"
+																class="btn btn-outline-danger btn-rounded"
+																data-toggle="modal"
+																data-target="#deleteModal-@item.SaleId">
 															<i class="fas fa-trash"></i>
-														</a>
+														</button>
+
+
 													</td>
 												</tr>
+												<div class="modal fade" id="deleteModal-@item.SaleId" tabindex="-1" role="dialog" aria-labelledby="deleteModalLabel-@item.SaleId" aria-hidden="true">
+													<div class="modal-dialog modal-dialog-centered" role="document">
+														<div class="modal-content">
+
+															<div class="modal-header bg-danger text-white">
+																<h5 class="modal-title" id="deleteModalLabel-@item.SaleId">
+																	<i class="fas fa-exclamation-triangle"></i> Confirm Delete
+																</h5>
+																<button type="button" class="close text-white" data-dismiss="modal" aria-label="Close">
+																	<span aria-hidden="true">&times;</span>
+																</button>
+															</div>
+
+															<div class="modal-body">
+																Are you sure you want to delete this sale <strong>#@item.SaleId</strong>?
+																This action cannot be undone.
+															</div>
+
+															<div class="modal-footer">
+																<button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+
+																<form asp-action="DeleteSale" asp-controller="Sales" method="post" style="display:inline;">
+																	<input type="hidden" name="id" value="@item.SaleId" />
+																	<button type="submit" class="btn btn-danger">Yes, Delete</button>
+																</form>
+															</div>
+
+														</div>
+													</div>
+												</div>
 											}
 										</tbody>
 									</table>
@@ -193,7 +229,9 @@ else
 					</div>
 				</div>
 			</div>
-		</div>
+		</div><!-- Delete Confirmation Modal -->
+		
+
 
 		<!-- Bootstrap scripts -->
 		<script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>

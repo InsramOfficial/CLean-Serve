@@ -1,0 +1,76 @@
+﻿@model Fastfood.Models.UnitPrice
+
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <title>Edit Unit</title>
+    <style>
+        body {
+            background: #F4F6FA;
+            font-family: 'Segoe UI', sans-serif;
+        }
+
+        .form-container {
+            max-width: 600px;
+            margin: auto;
+            background-color: #ffffff;
+            padding: 40px;
+            border-radius: 8px;
+            box-shadow: 0 0 15px rgba(0, 0, 0, 0.1);
+            border-left: 4px solid #3EADFA;
+        }
+
+        h2 {
+            color: #3EADFA;
+        }
+
+        .btn-custom {
+            background-color: #3EADFA;
+            color: #fff;
+            border: none;
+        }
+
+            .btn-custom:hover {
+                background-color: #1F75C1;
+            }
+
+        .btn-secondary a {
+            color: white;
+            text-decoration: none;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <div class="form-container">
+            <form method="post" asp-action="EditUnitPrice" asp-controller="ControlPanel">
+                <h2 class="text-center mb-4">Edit Unit</h2>
+
+                <input type="hidden" asp-for="UnitId" />
+
+                <div class="form-group">
+                    <label>Unit Name</label>
+                    <input asp-for="UnitName" class="form-control" placeholder="Enter Unit Name" />
+                    <span asp-validation-for="UnitName" class="text-danger"></span>
+                </div>
+
+                <div class="form-group">
+                    <label>Unit Code</label>
+                    <input asp-for="UnitCode" class="form-control" placeholder="Enter Unit Code" />
+                    <span asp-validation-for="UnitCode" class="text-danger"></span>
+                </div>
+
+                <div class="d-flex justify-content-between mt-4">
+                    <a asp-action="UnitPrices" asp-controller="ControlPanel" class="btn btn-secondary">Back</a>
+                    <button type="submit" class="btn btn-custom">Update</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</body>
+</html>
