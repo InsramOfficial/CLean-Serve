@@ -8,6 +8,9 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using System;
 using System.Linq;
+using QuestPDF.Fluent;
+using Fastfood.Documents;
+using QuestPDF.Infrastructure;
 
 namespace Fastfood.Controllers
 {
@@ -184,6 +187,26 @@ namespace Fastfood.Controllers
             if (!permission)
                 return RedirectToAction(nameof(AccessDenied));
 
+            // ✅ TOKEN LOGIC START
+            // ✅ TOKEN LOGIC START
+            DateTime today = DateTime.Today;
+            int nextTokenNumber = 1;
+
+            // ✅ Safer query using Date property for time-safe comparison
+            var lastSaleToday = db.sales
+       .Where(s => s.TokenDate.HasValue && s.TokenDate.Value.Date == today.Date)
+       .OrderByDescending(s => s.TokenNumber)
+       .FirstOrDefault();
+
+
+            if (lastSaleToday != null)
+            {
+                nextTokenNumber = (lastSaleToday.TokenNumber ?? 0) + 1; // ✅ FIX HERE
+            }
+            // ✅ TOKEN LOGIC END
+
+            // ✅ TOKEN LOGIC END
+
             // --- Save main Sale record ---
             var sale = new Sales
             {
@@ -195,7 +218,12 @@ namespace Fastfood.Controllers
                 Serving = items.DeliveryMethod,
                 Modifier = username,
                 LastModified = DateTime.Now,
-                DealingPerson = username
+                DealingPerson = username,
+                ClientId = items.ClientId,
+
+                // ✅ TOKEN FIELDS
+                TokenNumber = nextTokenNumber,
+                TokenDate = today
             };
 
             db.sales.Add(sale);
@@ -228,12 +256,12 @@ namespace Fastfood.Controllers
                         TrsID = sale.SaleId,
                         TrsDate = sale.SaleDate,
                         ItemId = soldItem.ItemId,
-                        Qty = soldItem.Qty,   // positive; queries treat non-Purchase as deduction
+                        Qty = soldItem.Qty,
                         Source = "Sale",
                         Price = soldItem.UnitPrice,
                         ItemName = soldItem.ItemName,
                         UnitId = db.items.Where(it => it.ItemId == soldItem.ItemId)
-                                         .Select(it => it.CategoryId) // <-- replace with real UnitId if items table has it
+                                         .Select(it => it.CategoryId)
                                          .FirstOrDefault()
                     });
                 }
@@ -248,6 +276,7 @@ namespace Fastfood.Controllers
             TempData["ToastMessage"] = "Order has been added successfully.";
             return RedirectToAction(nameof(SalesIndex));
         }
+
 
         // Convert units helper (expand as needed)
         public decimal ConvertUnits(decimal qty, string fromUnit, string toUnit)
@@ -518,6 +547,8 @@ namespace Fastfood.Controllers
                         catitem.FinalBillTotal = sales.Payment;
                         catitem.CashReceived = sales.Cash_Received;
                         catitem.CashPayBack = sales.Paid_Back;
+                        catitem.ClientId = sales.ClientId ?? null;
+
 
                     }
 
@@ -553,9 +584,7 @@ namespace Fastfood.Controllers
             {
                 return RedirectToAction("Login", "ControlPanel");
             }
-
-
-
+             
         }
         [HttpPost]
         public IActionResult UpdateBill(CategoryItemVM editbill)
@@ -642,46 +671,61 @@ namespace Fastfood.Controllers
             }
         }
 
-
-        public IActionResult Print(int Id)
+        public async Task<IActionResult> Print(int Id)
         {
-            TempData["UserName"] = HttpContext.Session.GetString("UserName");
+            QuestPDF.Settings.License = LicenseType.Community;
 
-            if (HttpContext.Session.GetString("flag") == "true")
+            var sale = await db.sales.FirstOrDefaultAsync(s => s.SaleId == Id);
+            if (sale == null)
+                return NotFound("Sale record not found.");
+
+            // ✅ Fetch Client name
+            string customerName = "Walk-in Customer";
+            if (sale.ClientId != null)
             {
-                var methodName = "Print";
-                var usercode = HttpContext.Session.GetString("UserCode");
-
-                bool permission = db.userPermissions.Where(u => u.UserCode.ToString() == usercode && u.MethodName == methodName).Select(u => u.View).FirstOrDefault();
-                if (permission)
-                {
-                    var sales = db.soldItems.Where(i => i.SaleId == Id).ToList();
-                    var InvoiceNo = Id.ToString();
-
-
-                    string mimType = "";
-                    int extension = 1;
-                    var path = $"{this.env.WebRootPath}/Reports/Report.rdlc";
-                    Dictionary<string, string> parameter = new Dictionary<string, string>();
-                    parameter.Add("Parameter1", "Welcome to the Sales Invoice Receipt");
-                    parameter.Add("InvoiceNo", InvoiceNo);
-                    parameter.Add("InvoiceName", "InvoiceNo");
-                    LocalReport localreport = new LocalReport(path);
-                    localreport.AddDataSource("DataSet", sales);
-                    var result = localreport.Execute(RenderType.Pdf, extension, parameter, mimType);
-                    return File(result.MainStream, "application/pdf");
-                }
-                else
-                {
-                    return RedirectToAction(nameof(AccessDenied));
-                }
-            }
-            else
-            {
-                return RedirectToAction("Login", "ControlPanel");
+                var client = await db.clients.FirstOrDefaultAsync(c => c.Clientid == sale.ClientId);
+                if (client != null)
+                    customerName = client.Name;
             }
 
+            // ✅ Fetch Items related to this Sale
+            var items = db.soldItems
+                .Where(i => i.SaleId == Id)
+                .Select(i => new
+                {
+                    ItemName = i.ItemName,
+                    Qty = i.Qty,
+                    UnitPrice = i.UnitPrice
+                })
+                .ToList<dynamic>();
 
+            // ✅ Calculate change
+            double totalAmount = sale.Payment ?? 0;
+            double cashReceived = sale.Cash_Received ?? 0;
+            double changeBack = sale.Paid_Back ?? (cashReceived - totalAmount);
+
+            string logoPath = Path.Combine(env.WebRootPath, "images", "logo.png");
+
+            // ✅ Pass values into PDF Model
+            var document = new InvoiceDocument
+            {
+                InvoiceNo = sale.SaleId.ToString(),
+                DealingPerson = sale.DealingPerson,
+                CustomerName = customerName,
+                Serving = sale.Serving,
+                TotalAmount = totalAmount,
+                CashReceived = cashReceived,
+                ChangeBack = changeBack,
+                Items = items,
+                LogoPath = System.IO.File.Exists(logoPath) ? logoPath : ""
+            };
+
+            // ✅ Generate PDF and Stream to Browser
+            var pdfBytes = document.GeneratePdf();
+
+            return File(pdfBytes, "application/pdf", $"Invoice_{sale.SaleId}.pdf");
         }
+
+
     }
 }

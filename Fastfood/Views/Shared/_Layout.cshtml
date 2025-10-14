@@ -232,7 +232,7 @@
             <!-- Inventory Management -->
             <li class="nav-item">
                 <a class="nav-link d-flex align-items-center @(currentController == "ControlPanel" &&
-                                                                          (currentAction == "CategoryDetails" || currentAction == "ItemsDetail" || currentAction == "Consumeables" || currentAction == "Suppliers" || currentAction == "StockTracking" || currentAction == "LowStock" || currentAction == "CreatePurchase" || currentAction == "RawMaterialConsumption"|| currentAction == "UnitPrices")
+                                                                                             (currentAction == "CategoryDetails" || currentAction == "ItemsDetail" || currentAction == "Consumeables" || currentAction == "Suppliers" || currentAction == "StockTracking" || currentAction == "LowStock" || currentAction == "CreatePurchase" || currentAction == "RawMaterialConsumption" || currentAction == "UnitPrices" || currentAction == "AllPurchases")
                                                     ? "" : "collapsed")"
                    data-bs-toggle="collapse" data-bs-target="#Inventory" href="#">
                     <i class="bi bi-box-seam"></i>
@@ -242,7 +242,7 @@
 
                 <ul id="Inventory"
                     class="nav-content collapse @(currentController == "ControlPanel" &&
-                                                            (currentAction == "CategoryDetails" || currentAction == "ItemsDetail" || currentAction == "Consumeables" || currentAction == "Suppliers" || currentAction == "StockTracking" || currentAction == "LowStock" || currentAction == "CreatePurchase" || currentAction == "RawMaterialConsumption"|| currentAction == "UnitPrices")
+                                                                                                    (currentAction == "CategoryDetails" || currentAction == "ItemsDetail" || currentAction == "Consumeables" || currentAction == "Suppliers" || currentAction == "StockTracking" || currentAction == "LowStock" || currentAction == "CreatePurchase" || currentAction == "RawMaterialConsumption" || currentAction == "UnitPrices" || currentAction == "AllPurchases")
                                                         ? "show" : "")"
                     data-bs-parent="#sidebar-nav"
                     style="list-style: none; padding-left: 0;">
@@ -308,6 +308,13 @@
                            asp-controller="ControlPanel" asp-action="LowStock">
                             <i class="bi bi-exclamation-triangle-fill fs-6"></i>
                             <span class="ms-1">Low Stock Alerts</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a class="nav-link @(currentAction == "Purchases" ? "text-primary" : "text-dark")"
+                           asp-controller="ControlPanel" asp-action="AllPurchases">
+                            <i class="bi bi-bag-check-fill fs-6"></i>
+                            <span class="ms-1">All Purchases</span>
                         </a>
                     </li>
 

@@ -27,6 +27,6 @@ namespace Fastfood.Models
         // Navigation Properties
         public Suppliers? Supplier { get; set; }
 
-        public List<Inv_PurchasedItems>? PurchasedItems { get; set; }
+        public virtual List<Inv_PurchasedItems>? PurchasedItems { get; set; }
     }
 }

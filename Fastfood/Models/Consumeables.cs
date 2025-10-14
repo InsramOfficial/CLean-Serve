@@ -24,7 +24,7 @@ using System;
 
             public decimal? ExpiryAlertDays { get; set; }
             [ValidateNever]
-            public UnitPrice Unit { get; set; }
+            public UnitPrice? Unit { get; set; }
 
 
         public bool? Status { get; set; }

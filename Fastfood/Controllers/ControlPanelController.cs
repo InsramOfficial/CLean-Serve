@@ -84,7 +84,13 @@ namespace Fastfood.Controllers
             // --- Summary calculations ---
             var totalPurchases = await db.Inv_Purchases.CountAsync(); // total purchases from suppliers
             var totalSuppliers = await db.suppliers.CountAsync();
-            var totalItemsInStock = await db.Inv_PurchasedItems.SumAsync(pi => (decimal?)pi.Qty) ?? 0;
+            //var totalItemsInStock = await db.Inv_PurchasedItems.SumAsync(pi => (decimal?)pi.Qty) ?? 0;
+            var totalItemsInStock = await db.StockTracking
+                .Where(st => st.Qty > 0)   // assuming you track current stock in this table
+                .Select(st => st.ItemName)
+                .Distinct()
+                .CountAsync();
+
 
             // --- Best-selling items from SoldItems ---
             var bestSellingGroup = await db.soldItems
@@ -1119,6 +1125,27 @@ namespace Fastfood.Controllers
 
 
         #region Purchase-Products
+        [HttpGet]
+     
+        public async Task<IActionResult> AllPurchases()
+        {
+            TempData["UserName"] = HttpContext.Session.GetString("UserName");
+            TempData["Access"] = HttpContext.Session.GetString("Access");
+
+            if (HttpContext.Session.GetString("flag") != "true")
+            {
+                return RedirectToAction("Login", "ControlPanel");
+            }
+
+            var purchases = await db.Inv_Purchases
+                .Include(p => p.Supplier)                     // ✅ Load Supplier
+                .Include(p => p.PurchasedItems)           // ✅ Load purchased items list
+                .OrderByDescending(x => x.PurchaseId)
+                .ToListAsync();
+
+            return View(purchases);
+        }
+
 
         [HttpGet]
         public async Task<JsonResult> GetItemPrices(int itemId)

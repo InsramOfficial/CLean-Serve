@@ -1,4 +1,5 @@
-﻿using System.ComponentModel.DataAnnotations;
+﻿using Microsoft.AspNetCore.Mvc.ModelBinding.Validation;
+using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
 namespace Fastfood.Models
@@ -18,6 +19,10 @@ namespace Fastfood.Models
         public string? Modifier { get; set; }
         public string?DealingPerson { get; set; }
         public int? TokenNumber { get; set; }
+        public DateTime? TokenDate { get; set; }
         public string? Serving { get; set; }
+        [ValidateNever]
+        [NotMapped]
+        public Suppliers? Supplier { get; set; }
     }
 }

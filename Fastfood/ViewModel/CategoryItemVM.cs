@@ -21,6 +21,6 @@ namespace Fastfood.ViewModel
         public BankSattlement? BankSattlement { get; set; } = new BankSattlement();
         public List<Client>? clients { get; set; } = new List<Client>();
         public Client? Clientdetails { get; set; }
-
+        public int? ClientId { get; set; }
     }
 }

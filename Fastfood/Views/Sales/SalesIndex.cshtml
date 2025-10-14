@@ -281,9 +281,7 @@ else
                                     <div class="form-group row position-relative">
                                         <label class="col-3 col-form-label">Customer:</label>
                                         <div class="col-sm-9 position-relative">
-                                            <!-- Adjusted width to col-sm-9 -->
                                             <div class="input-group">
-                                                <!-- Adjust the column width as needed -->
                                                 <input asp-for="Clientdetails.Name" type="text" id="searchInput" required class="form-control" placeholder="Search Customer..." autocomplete="off">
                                                 <div class="input-group-append">
                                                     <button type="button" class="btn btn-primary" onclick="OpenCreateCustomerModal()">
@@ -294,19 +292,23 @@ else
                                                     </a>
                                                 </div>
                                             </div>
-                                            <!-- <input asp-for="Clientdetails.Clientid" type="hidden" /> -->
+
+                                            <!-- ✅ THIS should be ONLY ONCE and OUTSIDE the foreach -->
+                                            <input asp-for=ClientId" type="hidden" id="SelectedClientId" />
+
                                             <ul id="customer-list" class="list-group">
                                                 @foreach (var item in Model.clients)
                                                 {
                                                     <li class="customer-item">
                                                         @item.Name
-                                                        <input id="clientId" value="@item.Clientid" type="hidden" />
+                                                        <input value="@item.Clientid" type="hidden" class="client-id" />
                                                     </li>
                                                 }
                                             </ul>
                                         </div>
                                     </div>
                                 </div>
+
 
                                 <div class="row">
                                     <div class="col-md-5">
@@ -909,12 +911,16 @@ else
                                     resultContainer.empty();
                                 }
                             });
-                            $('#customer-list').on('click', '.customer-item', function () {
-                                var itemName = $(this).text().trim();
-                                $('#searchInput').val(itemName);
-                                customerList.hide();
-                                resultContainer.empty();
-                            });
+                                                 $('#customer-list').on('click', '.customer-item', function () {
+                var name = $(this).text().trim();
+                var clientId = $(this).find('.client-id').val();
+
+                $('#searchInput').val(name);  // Set name
+                $('#SelectedClientId').val(clientId); // ✅ Set ClientId to hidden input
+                $('#customer-list').hide();
+            });
+
+
 
                                         loadStockRecords();
 
