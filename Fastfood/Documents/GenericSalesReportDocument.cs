@@ -1,0 +1,140 @@
+﻿using QuestPDF.Fluent;
+using QuestPDF.Helpers;
+using QuestPDF.Infrastructure;
+using Fastfood.Models;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+
+namespace Fastfood.Documents
+{
+    public class GenericSalesReportDocument : IDocument
+    {
+        private readonly List<Sales> _sales;
+        private readonly string _title;
+        private readonly DateTime _start;
+        private readonly DateTime _end;
+        private readonly string _logoPath;
+
+        public GenericSalesReportDocument(List<Sales> sales, string title, DateTime start, DateTime end, string logoPath)
+        {
+            _sales = sales ?? new List<Sales>();
+            _title = title;
+            _start = start;
+            _end = end;
+            _logoPath = logoPath;
+        }
+
+        public DocumentMetadata GetMetadata() => DocumentMetadata.Default;
+
+        public void Compose(IDocumentContainer container)
+        {
+            container.Page(page =>
+            {
+                page.Margin(30);
+                page.PageColor(Colors.White);
+
+                page.Content().Column(col =>
+                {
+                    // ---------- HEADER ----------
+                    col.Item().Row(row =>
+                    {
+                        if (!string.IsNullOrEmpty(_logoPath))
+                            row.ConstantItem(80).Image(_logoPath).FitWidth();
+
+                        row.RelativeItem().AlignCenter().Column(headerCol =>
+                        {
+                            headerCol.Item().AlignCenter().Text(_title).FontSize(18).Bold();
+                            headerCol.Item().AlignCenter()
+                                .Text($"From: {_start:dd MMM yyyy}   To: {_end:dd MMM yyyy}")
+                                .FontSize(10)
+                                .Italic()
+                                .FontColor(Colors.Grey.Darken1);
+                        });
+                    });
+
+                    col.Item().PaddingVertical(10);
+
+                    // ---------- TABLE HEADER ----------
+                    col.Item().Border(1).BorderColor(Colors.Grey.Lighten2).Background(Colors.Grey.Lighten3).Padding(6)
+                        .Row(row =>
+                        {
+                            row.RelativeColumn(2).Text("Date").Bold().FontSize(10);
+                            row.RelativeColumn(3).AlignCenter().Text("Cashier").Bold().FontSize(10);
+                            row.RelativeColumn(2).AlignRight().Text("Amount (Rs)").Bold().FontSize(10);
+                        });
+
+                    col.Item().PaddingVertical(6);
+
+                    // ---------- TABLE CONTENT ----------
+                    if (_sales.Any())
+                    {
+                        foreach (var sale in _sales)
+                        {
+                            col.Item().BorderBottom(0.5f).BorderColor(Colors.Grey.Lighten3).PaddingVertical(4).Row(row =>
+                            {
+                                row.RelativeColumn(2).Text(sale.SaleDate?.ToString("dd MMM yyyy") ?? "-").FontSize(9);
+                                row.RelativeColumn(3).AlignCenter().Text(sale.DealingPerson ?? "-").FontSize(9);
+                                row.RelativeColumn(2).AlignRight().Text($"{(sale.Payment ?? 0):0.00}").FontSize(9);
+                            });
+                        }
+                    }
+                    else
+                    {
+                        col.Item().AlignCenter().Padding(20).Text("No sales records found in this period.")
+                            .FontSize(10)
+                            .Italic()
+                            .FontColor(Colors.Grey.Medium);
+                    }
+
+                    col.Item().PaddingVertical(10);
+
+                    // ---------- TOTALS ----------
+                    double totalSales = _sales.Sum(x => x.Payment ?? 0);
+
+                    col.Item().PaddingTop(6).Row(row =>
+                    {
+                        row.RelativeColumn(1).Text("");
+                        row.RelativeColumn(3).AlignRight().Text("Total Sales:").Bold().FontSize(11);
+                        row.ConstantColumn(90).AlignRight().Text($"Rs. {totalSales:0.00}").Bold().FontSize(11);
+                    });
+
+                    col.Item().PaddingVertical(10);
+
+                    // ---------- FOOTER ----------
+                    col.Item().BorderTop(1).BorderColor(Colors.Grey.Lighten2).PaddingTop(8).Column(footer =>
+                    {
+                        footer.Item().Row(row =>
+                        {
+                            row.RelativeItem().AlignLeft().Column(left =>
+                            {
+                                left.Item().Text($"Generated on {DateTime.Now:dd MMM yyyy hh:mm tt}")
+                                    .FontSize(8)
+                                    .FontColor(Colors.Grey.Darken1);
+                                left.Item().Text("This report was automatically generated by Clean Serve Sales Management System.")
+                                    .FontSize(8)
+                                    .Italic()
+                                    .FontColor(Colors.Grey.Darken2);
+                            });
+
+                            row.RelativeItem().AlignRight().Row(innerRow =>
+                            {
+                                innerRow.AutoItem().Text("Powered by ").FontSize(8).FontColor(Colors.Grey.Darken2);
+                                innerRow.AutoItem().Text(" Clean Serve Software").Bold().FontSize(8).FontColor(Colors.Blue.Darken2);
+
+                                if (!string.IsNullOrEmpty(_logoPath))
+                                {
+                                    innerRow.ConstantItem(20).PaddingLeft(5).Image(_logoPath).FitHeight();
+                                }
+                            });
+                        });
+
+                        footer.Item().PaddingTop(4).AlignCenter().Text("Clean Serve © 2025 | All Rights Reserved | www.cleanserve.com")
+                            .FontSize(7)
+                            .FontColor(Colors.Grey.Darken1);
+                    });
+                });
+            });
+        }
+    }
+}

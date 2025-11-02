@@ -96,8 +96,74 @@ namespace Fastfood.Controllers
             var pdfBytes = report.GeneratePdf();
 
             return File(pdfBytes, "application/pdf", $"PurchaseBill_{purchase.InvoiceNo}.pdf");
+
+
+        }
+        // ✅ Generic Report Generator Method
+        private async Task<byte[]> GenerateSalesReportAsync(DateTime startDate, DateTime endDate, string reportTitle)
+        {
+            QuestPDF.Settings.License = LicenseType.Community;
+
+            var sales = await db.sales
+                .Where(s => s.SaleDate >= startDate && s.SaleDate <= endDate)
+                .OrderBy(s => s.SaleDate)
+                .ToListAsync();
+
+            var logoPath = Path.Combine(env.WebRootPath, "images", "logo.png");
+            if (!System.IO.File.Exists(logoPath))
+                logoPath = "";
+
+            var report = new GenericSalesReportDocument(sales, reportTitle, startDate, endDate, logoPath);
+            return report.GeneratePdf();
         }
 
+        // ✅ Daily Report
+        public async Task<IActionResult> DailyReport()
+        {
+            var today = DateTime.Today;
+            var pdf = await GenerateSalesReportAsync(today, today.AddDays(1), "Daily Sales Report");
+            return File(pdf, "application/pdf", $"DailyReport_{today:yyyyMMdd}.pdf");
+        }
+
+        // ✅ Weekly Report
+        public async Task<IActionResult> WeeklyReport()
+        {
+            var end = DateTime.Today;
+            var start = end.AddDays(-7);
+            var pdf = await GenerateSalesReportAsync(start, end, "Weekly Sales Report");
+            return File(pdf, "application/pdf", $"WeeklyReport_{end:yyyyMMdd}.pdf");
+        }
+
+        // ✅ Monthly Report
+        public async Task<IActionResult> MonthlyReport()
+        {
+            var now = DateTime.Today;
+            var start = new DateTime(now.Year, now.Month, 1);
+            var end = start.AddMonths(1).AddDays(-1);
+            var pdf = await GenerateSalesReportAsync(start, end, "Monthly Sales Report");
+            return File(pdf, "application/pdf", $"MonthlyReport_{now:yyyyMM}.pdf");
+        }
+
+        // ✅ Yearly Report
+        public async Task<IActionResult> YearlyReport()
+        {
+            var now = DateTime.Today;
+            var start = new DateTime(now.Year, 1, 1);
+            var end = new DateTime(now.Year, 12, 31);
+            var pdf = await GenerateSalesReportAsync(start, end, "Yearly Sales Report");
+            return File(pdf, "application/pdf", $"YearlyReport_{now:yyyy}.pdf");
+        }
+
+        // ✅ Custom Range Report
+        [HttpPost]
+        public async Task<IActionResult> CustomReport(DateTime startDate, DateTime endDate)
+        {
+            if (startDate > endDate)
+                return BadRequest("Invalid date range");
+
+            var pdf = await GenerateSalesReportAsync(startDate, endDate, $"Custom Report ({startDate:MMM dd} - {endDate:MMM dd})");
+            return File(pdf, "application/pdf", $"CustomReport_{startDate:yyyyMMdd}_{endDate:yyyyMMdd}.pdf");
+        }
 
 
     }

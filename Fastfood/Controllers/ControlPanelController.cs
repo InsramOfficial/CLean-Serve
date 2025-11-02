@@ -2476,5 +2476,14 @@ namespace Fastfood.Controllers
             return View();
 		}
         #endregion
+
+
+        #region Sales Reports Page
+
+        public IActionResult ReportsDashboard()
+        {
+            return View();
+        }
+        #endregion
     }
 }

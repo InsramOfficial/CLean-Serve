@@ -1,0 +1,136 @@
+﻿@{
+    ViewData["Title"] = "Reports Dashboard";
+}
+
+<div class="container py-5">
+    <!-- HEADER -->
+    <div class="text-center mb-5">
+      
+        <h2 class="fw-bold text-primary">
+            <i class="bi bi-bar-chart-line me-2"></i> Reports Dashboard
+        </h2>
+        <p class="text-muted fs-6 mb-2">Generate detailed sales and performance reports powered by <strong>Clean Serve</strong>.</p>
+        <hr class="w-25 mx-auto border-primary opacity-50">
+    </div>
+
+    <!-- QUICK REPORTS SECTION -->
+    <div class="row g-4 mb-5 justify-content-center">
+        <div class="col-xl-3 col-md-4 col-sm-6">
+            <div class="card shadow-sm border-0 hover-scale text-center h-100">
+                <div class="card-body d-flex flex-column align-items-center justify-content-center py-4">
+                    <i class="bi bi-calendar-day text-primary fs-1 mb-2"></i>
+                    <h5 class="fw-semibold mb-2">Daily Report</h5>
+                    <p class="text-muted small mb-3 text-center px-2">View today’s sales summary and cashier insights.</p>
+                    <a href="/Reports/DailyReport" class="btn btn-primary btn-sm px-3 mt-auto">
+                        <i class="bi bi-file-earmark-pdf me-1"></i> Generate
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-3 col-md-4 col-sm-6">
+            <div class="card shadow-sm border-0 hover-scale text-center h-100">
+                <div class="card-body d-flex flex-column align-items-center justify-content-center py-4">
+                    <i class="bi bi-calendar-week text-success fs-1 mb-2"></i>
+                    <h5 class="fw-semibold mb-2">Weekly Report</h5>
+                    <p class="text-muted small mb-3 text-center px-2">Analyze performance over the past 7 days.</p>
+                    <a href="/Reports/WeeklyReport" class="btn btn-success btn-sm px-3 mt-auto">
+                        <i class="bi bi-file-earmark-pdf me-1"></i> Generate
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-3 col-md-4 col-sm-6">
+            <div class="card shadow-sm border-0 hover-scale text-center h-100">
+                <div class="card-body d-flex flex-column align-items-center justify-content-center py-4">
+                    <i class="bi bi-calendar-month text-warning fs-1 mb-2"></i>
+                    <h5 class="fw-semibold mb-2">Monthly Report</h5>
+                    <p class="text-muted small mb-3 text-center px-2">Get a comprehensive monthly sales breakdown.</p>
+                    <a href="/Reports/MonthlyReport" class="btn btn-warning text-white btn-sm px-3 mt-auto">
+                        <i class="bi bi-file-earmark-pdf me-1"></i> Generate
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-3 col-md-4 col-sm-6">
+            <div class="card shadow-sm border-0 hover-scale text-center h-100">
+                <div class="card-body d-flex flex-column align-items-center justify-content-center py-4">
+                    <i class="bi bi-calendar-year text-danger fs-1 mb-2"></i>
+                    <h5 class="fw-semibold mb-2">Yearly Report</h5>
+                    <p class="text-muted small mb-3 text-center px-2">Review yearly progress and financial overview.</p>
+                    <a href="/Reports/YearlyReport" class="btn btn-danger btn-sm px-3 mt-auto">
+                        <i class="bi bi-file-earmark-pdf me-1"></i> Generate
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- CUSTOM REPORT SECTION -->
+    <div class="card shadow-sm border-0 mx-auto" style="max-width: 900px;">
+        <div class="card-header bg-primary text-white d-flex align-items-center">
+            <i class="bi bi-sliders me-2"></i>
+            <h6 class="mb-0 fw-semibold">Generate Custom Report</h6>
+        </div>
+        <div class="card-body">
+            <form method="post" asp-action="CustomReport" asp-controller="Reports">
+                <div class="row g-3 align-items-center justify-content-center">
+                    <div class="col-md-4">
+                        <label class="form-label fw-semibold text-muted">Start Date</label>
+                        <input type="date" name="startDate" class="form-control shadow-sm" required />
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label fw-semibold text-muted">End Date</label>
+                        <input type="date" name="endDate" class="form-control shadow-sm" required />
+                    </div>
+                    <div class="col-md-4 d-grid mt-4 mt-md-0">
+                        <button type="submit" class="btn btn-outline-primary shadow-sm fw-semibold" style="
+                                margin-top: 48px;>
+                            <i class="bi bi-file-earmark-pdf me-1"></i> Generate Custom Report
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- FOOTER NOTE -->
+    <div class="text-center mt-5 text-muted small">
+        <p class="mb-0">© @DateTime.Now.Year Clean Serve | Reports powered by Clean Serve</p>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        // Hover animation
+        document.querySelectorAll('.hover-scale').forEach(card => {
+            card.addEventListener('mouseenter', () => card.classList.add('shadow-lg'));
+            card.addEventListener('mouseleave', () => card.classList.remove('shadow-lg'));
+        });
+    </script>
+}
+
+<style>
+    .hover-scale {
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+
+        .hover-scale:hover {
+            transform: translateY(-6px);
+        }
+
+    .card-header {
+        font-size: 0.95rem;
+        letter-spacing: 0.3px;
+    }
+
+    .form-control {
+        border-radius: 8px;
+    }
+
+    .btn {
+        border-radius: 8px;
+    }
+</style>
