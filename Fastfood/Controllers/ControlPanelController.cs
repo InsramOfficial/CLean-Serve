@@ -1121,8 +1121,7 @@ namespace Fastfood.Controllers
         }
 
         #endregion
-
-
+         
 
         #region Purchase-Products
         [HttpGet]

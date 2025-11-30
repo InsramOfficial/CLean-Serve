@@ -181,7 +181,7 @@ else
             function searchConsumption() {
                 var input = $('#searchInput').val().toLowerCase();
                 $('#dataTables-example tbody tr').each(function () {
-                    var rowData = $(this).find('td:eq(1)').text().toLowerCase();
+                    var rowData = $(this).find('td:eq(0)').text().toLowerCase();
                     var isMatch = input === '' || rowData.indexOf(input) !== -1;
                     $(this).toggle(isMatch);
                 });
