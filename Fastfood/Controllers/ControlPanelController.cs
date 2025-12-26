@@ -1487,72 +1487,108 @@ namespace Fastfood.Controllers
         {
             var vm = new RawMaterialConsumptionVM
             {
-                Consumption = new RawMaterial_Items_Consumption(),
+                Consumptions = new List<RawMaterial_Items_Consumption>
+        {
+            new RawMaterial_Items_Consumption() // one empty row for the form
+        },
                 Consumeables = db.Consumeables.ToList(),
                 BaseItems = db.items.ToList()
             };
 
             return View(vm);
         }
+
+
         // Create POST
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public IActionResult CreateRawMaterialConsumption(RawMaterialConsumptionVM vm)
+        public IActionResult CreateRawMaterialConsumption(RawMaterialConsumptionVM vm, int BaseItemId)
         {
+            if (!vm.Consumptions.Any())
+            {
+                ModelState.AddModelError("", "At least one raw material is required.");
+            }
+
             if (ModelState.IsValid)
             {
-                // find the selected raw material
-                var selectedRaw = db.Consumeables
-                                    .FirstOrDefault(c => c.CMID == vm.Consumption.RMInv_ItemId);
-
-                if (selectedRaw != null)
+                foreach (var item in vm.Consumptions)
                 {
-                    // set raw material name
-                    vm.Consumption.RMItemName = selectedRaw.CMName;
+                    var raw = db.Consumeables.FirstOrDefault(c => c.CMID == item.RMInv_ItemId);
+                    if (raw == null) continue;
 
-                    // set the unit id from Consumeable
-                    vm.Consumption.UnitId = selectedRaw.UnitId;
+                    item.RMItemName = raw.CMName;
+                    item.UnitId = raw.UnitId;
+
+                    // Assign the single base item to all entries
+                    item.BInv_ItemId = BaseItemId;
+
+                    db.RawMaterial_Items_Consumption.Add(item);
                 }
 
-                db.RawMaterial_Items_Consumption.Add(vm.Consumption);
                 db.SaveChanges();
-
+                TempData["ToastType"] = "success";
+                TempData["ToastMessage"] = $"Record(s) have been added successfully.";
                 return RedirectToAction(nameof(RawMaterialConsumption));
             }
 
-            // if invalid, repopulate dropdowns
             vm.Consumeables = db.Consumeables.ToList();
             vm.BaseItems = db.items.ToList();
-
             return View(vm);
         }
 
 
-
-        // Edit GET
-        public IActionResult EditRawMaterialConsumption(int id)
+        [HttpGet]
+        public IActionResult EditRawMaterialConsumption(int Id)
         {
-            var record = db.RawMaterial_Items_Consumption.Find(id);
-            if (record == null) return NotFound();
+            if (Id == 0)
+                return BadRequest("Base Item ID not provided.");
 
-            // find the consumeable (raw material) related to this record
-            var relatedConsumeable = db.Consumeables
-                .FirstOrDefault(c => c.CMID == record.RMInv_ItemId);
+            //Fetch Base Item Name
+            var name = db.items
+                .Where(i => i.ItemId == Id)
+                .Select(i => i.ItemName)
+                .FirstOrDefault() ?? "Unknown Item";
+            ViewBag.BaseItemName = name;
+            // Fetch all raw material consumptions linked to this base item
+            var consumptions = db.RawMaterial_Items_Consumption
+                                 .Where(x => x.BInv_ItemId == Id)
+                                 .ToList();
 
-            if (relatedConsumeable != null)
+            // If no consumption exists, initialize one empty record
+            if (!consumptions.Any())
             {
-                // assign the correct UnitId to the record (in case not set before)
-                record.UnitId = relatedConsumeable.UnitId;
+                consumptions.Add(new RawMaterial_Items_Consumption
+                {
+                    BInv_ItemId = Id
+                });
+            }
+            else
+            {
+                // Populate RMItemName and Unit info from Consumeables
+                foreach (var c in consumptions)
+                {
+                    if (c.RMInv_ItemId.HasValue)
+                    {
+                        var raw = db.Consumeables.FirstOrDefault(x => x.CMID == c.RMInv_ItemId.Value);
+                        if (raw != null)
+                        {
+                            c.RMItemName = raw.CMName;
+                            c.UnitId = raw.UnitId;
+                            c.Unit = db.UnitPrices.FirstOrDefault(u => u.UnitId == raw.UnitId);
+                        }
+                    }
+                }
             }
 
+            // Prepare ViewModel
             var vm = new RawMaterialConsumptionVM
             {
-                Consumption = record,
+                Consumptions = consumptions,
                 Consumeables = db.Consumeables.ToList(),
                 BaseItems = db.items.ToList()
             };
 
-            return View(vm);
+            return View("EditRawMaterialConsumption", vm);
         }
 
 
@@ -1560,51 +1596,85 @@ namespace Fastfood.Controllers
         [ValidateAntiForgeryToken]
         public IActionResult EditRawMaterialConsumption(RawMaterialConsumptionVM vm)
         {
-            if (ModelState.IsValid)
+            if (!ModelState.IsValid)
             {
-                // Fetch the existing record from DB
-                var existingRecord = db.RawMaterial_Items_Consumption
-                                       .FirstOrDefault(r => r.S_No == vm.Consumption.S_No);
-
-                if (existingRecord == null)
-                    return NotFound();
-
-                // Update editable fields
-                existingRecord.RMInv_ItemId = vm.Consumption.RMInv_ItemId;
-                existingRecord.BInv_ItemId = vm.Consumption.BInv_ItemId;
-                existingRecord.RMQTY = vm.Consumption.RMQTY;
-                existingRecord.Remarks = vm.Consumption.Remarks;
-
-                // Recompute RMItemName based on RMInv_ItemId (or fetch the actual name from related table)
-                var consumeable = db.Consumeables
-                                    .FirstOrDefault(c => c.CMID == vm.Consumption.RMInv_ItemId);
-                if (consumeable != null)
-                {
-                    existingRecord.RMItemName = consumeable.CMName; // or the property that stores item name
-                }
-
-                // Keep UnitId intact
-                // existingRecord.UnitId = existingRecord.UnitId;
-
-                db.SaveChanges();
-                return RedirectToAction(nameof(RawMaterialConsumption));
+                vm.Consumeables = db.Consumeables.ToList();
+                vm.BaseItems = db.items.ToList();
+                return View(vm);
             }
 
-            // Repopulate lists if validation fails
-            vm.Consumeables = db.Consumeables.ToList();
-            vm.BaseItems = db.items.ToList();
-            return View(vm);
+            foreach (var item in vm.Consumptions)
+            {
+                if (item.S_No > 0) // Existing record
+                {
+                    var existing = db.RawMaterial_Items_Consumption
+                                     .FirstOrDefault(x => x.S_No == item.S_No);
+
+                    if (existing == null)
+                        continue;
+
+                    if (item.IsDeleted)
+                    {
+                        db.RawMaterial_Items_Consumption.Remove(existing);
+                        continue;
+                    }
+
+                    // Update fields
+                    existing.RMInv_ItemId = item.RMInv_ItemId;
+                    existing.RMQTY = item.RMQTY;
+                    existing.Remarks = item.Remarks;
+
+                    var consumeable = db.Consumeables
+                                        .FirstOrDefault(c => c.CMID == item.RMInv_ItemId);
+
+                    if (consumeable != null)
+                    {
+                        existing.RMItemName = consumeable.CMName;
+                        existing.UnitId = consumeable.UnitId;
+                    }
+                }
+                else // New record
+                {
+                    if (item.RMInv_ItemId == null || item.RMQTY <= 0)
+                        continue; // Skip empty new rows
+
+                    var consumeable = db.Consumeables
+                                        .FirstOrDefault(c => c.CMID == item.RMInv_ItemId);
+
+                    if (consumeable != null)
+                    {
+                        item.RMItemName = consumeable.CMName;
+                        item.UnitId = consumeable.UnitId;
+                    }
+
+                    // Set the BaseItemId if not already set
+                    if (!item.BInv_ItemId.HasValue && vm.Consumptions.Any(c => c.BInv_ItemId.HasValue))
+                    {
+                        item.BInv_ItemId = vm.Consumptions.First(c => c.BInv_ItemId.HasValue).BInv_ItemId;
+                    }
+                 
+                    db.RawMaterial_Items_Consumption.Add(item);
+                }
+            }
+            TempData["ToastType"] = "success";
+            TempData["ToastMessage"] = $"Record Has Been updated successfully";
+            db.SaveChanges(); // Commit all changes
+            return RedirectToAction(nameof(RawMaterialConsumption));
         }
+
+
 
 
 
         public IActionResult DeleteRawMaterialConsumption(int id)
         {
-            var record = db.RawMaterial_Items_Consumption.Find(id);
-            if (record == null) return NotFound();
+            var records = db.RawMaterial_Items_Consumption.Where(x=>x.BInv_ItemId==id).ToList();
+            if (records == null) return NotFound();
 
-            db.RawMaterial_Items_Consumption.Remove(record);
+            db.RawMaterial_Items_Consumption.RemoveRange(records);
             db.SaveChanges();
+            TempData["ToastType"] = "error";
+            TempData["ToastMessage"] = $"Record Has Been Deleted successfully";
             return RedirectToAction(nameof(RawMaterialConsumption));
         }
 

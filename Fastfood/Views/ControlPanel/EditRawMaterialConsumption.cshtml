@@ -22,93 +22,96 @@ else
     @using Fastfood.ViewModel
 @model RawMaterialConsumptionVM
 
-    <!DOCTYPE html>
-    <html lang="en">
+    <div class="container mt-5">
+        <div class="form-container">
 
-    <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
-        <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
-        <title>Add Raw Material Consumption</title>
-        <style>
-            body {
-                background: #F4F6FA;
-                font-family: 'Segoe UI', sans-serif;
-            }
+            <form method="post" asp-action="EditRawMaterialConsumption">
+                <h2 class="text-center mb-4">Edit Raw Material Consumption</h2>
+                  <!-- Base Item Name -->
+            <h4 class="mb-3">
+                Editing ingredients for: 
+                <strong>@ViewBag.BaseItemName</strong>
+            </h4>
 
-            .form-container {
-                max-width: 800px;
-                margin: auto;
-                background-color: #ffffff;
-                padding: 40px;
-                border-radius: 8px;
-                box-shadow: 0 0 15px rgba(0, 0, 0, 0.1);
-                border-left: 4px solid #3EADFA;
-            }
+                <table class="table table-bordered">
+                    <thead>
+                        <tr>
+                            <th>Raw Material</th>
+                            <th>Quantity</th>
+                            <th>Unit</th>
+                            <th>Remarks</th>
+                            <th>Remove</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                    @for (int i = 0; i < Model.Consumptions.Count; i++)
+                        {
+                            <tr>
+                                <td>
+                                    <input type="hidden" asp-for="Consumptions[i].S_No" />
+                                    <input type="hidden" asp-for="Consumptions[i].BInv_ItemId" />
 
-            h2 {
-                color: #3EADFA;
-            }
+                                    <select asp-for="Consumptions[i].RMInv_ItemId"
+                                            class="form-control"
+                                            asp-items="@(new SelectList(Model.Consumeables, "CMID", "CMName", Model.Consumptions[i].RMInv_ItemId))">
+                                    </select>
+                                </td>
 
-            .btn-custom {
-                background-color: #3EADFA;
-                color: #fff;
-                border: none;
-            }
+                                <td>
+                                    <input asp-for="Consumptions[i].RMQTY" class="form-control" />
+                                </td>
+                                <td>
+                                    <input readonly asp-for="Consumptions[i].Unit.UnitName" class="form-control" />
+                                </td>
 
-                .btn-custom:hover {
-                    background-color: #1F75C1;
-                }
+                                <td>
+                                    <input asp-for="Consumptions[i].Remarks" class="form-control" />
+                                </td>
 
-            .btn-secondary a {
-                color: white;
-                text-decoration: none;
-            }
-        </style>
-    </head>
+                                <td class="text-center">
+                                    <input asp-for="Consumptions[i].IsDeleted" type="checkbox" />
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
 
-    <body>
-        <div class="container">
-            <div class="form-container">
-                <form method="post" asp-action="EditRawMaterialConsumption" asp-controller="ControlPanel">
-                    <h2 class="text-center mb-4">Add Raw Material Consumption</h2>
-                    <input type="hidden" asp-for="Consumption.S_No" />
-                    <div class="form-row">
-                        <div class="form-group col-md-6">
-                            <label>Raw Material</label>
-                            <select asp-for="Consumption.RMInv_ItemId" class="form-control"
-                                    asp-items="@(new SelectList(Model.Consumeables, "CMID", "CMName"))">
-                                <option value="">--- Select Raw Material ---</option>
-                            </select>
-                        </div>
-                        <div class="form-group col-md-6">
-                            <label>Quantity</label>
-                            <input asp-for="Consumption.RMQTY" class="form-control" placeholder="Enter Quantity" />
-                        </div>
-                    </div>
+                <div class="d-flex justify-content-between">
+                    <a asp-action="RawMaterialConsumption" class="btn btn-secondary">Back</a>
+                    <button type="submit" class="btn btn-primary">Update All</button>
+                </div>
+            </form>
 
-                    <div class="form-row">
-                        <div class="form-group col-md-6">
-                            <label>Base Item (Menu Item)</label>
-                            <select asp-for="Consumption.BInv_ItemId" class="form-control"
-                                    asp-items="@(new SelectList(Model.BaseItems, "ItemId", "ItemName", Model.Consumption.BInv_ItemId))">
-                                <option value="">--- Select Base Item ---</option>
-                            </select>
-
-                        </div>
-                        <div class="form-group col-md-6">
-                            <label>Remarks</label>
-                            <input asp-for="Consumption.Remarks" class="form-control" placeholder="Enter Remarks" />
-                        </div>
-                    </div>
-
-                    <div class="d-flex justify-content-between mt-4">
-                        <a asp-action="RawMaterialConsumption" asp-controller="ControlPanel" class="btn btn-secondary">Back</a>
-                        <button type="submit" class="btn btn-custom">Update</button>
-                    </div>
-                </form>
-            </div>
         </div>
-    </body>
-    </html>
+    </div>
+
+    <style>
+        .form-container {
+            max-width: 900px;
+            margin: auto;
+            background-color: #ffffff;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 0 15px rgba(0, 0, 0, 0.1);
+            border-left: 4px solid #3EADFA;
+        }
+
+        h2 {
+            color: #3EADFA;
+        }
+
+        .btn-primary {
+            background-color: #3EADFA;
+            border: none;
+        }
+
+            .btn-primary:hover {
+                background-color: #1F75C1;
+            }
+
+        .btn-secondary {
+            background-color: #6c757d;
+            color: #fff;
+        }
+    </style>
 }

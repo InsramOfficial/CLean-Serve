@@ -114,33 +114,47 @@ else
                                 <tr>
                                     <th>Base Item Name</th>
                                     <th>Raw Material</th>
-                                    <th>Quantity</th>
-                                    <th>Unit</th> <!-- New column -->
-                                    <th>Remarks</th>
+                                     
                                     <th>Actions</th>
                                 </tr>
                             </thead>
+
                             <tbody>
-                                @foreach (var item in Model)
+                                @foreach (var baseItemGroup in Model.GroupBy(x => x.BInv_ItemId))
                                 {
+                                    var baseItemId = baseItemGroup.Key; // BaseItemId
+                                    var baseItemName = baseItemGroup.First().Item?.ItemName ?? "Unknown Item";
+                                    var rawMaterials = string.Join(", ", baseItemGroup.Select(x => x.RMItemName));
+
                                     <tr>
-                                        <td>@item.Item?.ItemName</td>
-                                        <td>@item.RMItemName</td>
-                                        <td>@item.RMQTY</td>
-                                        <td>@item.Unit?.UnitName</td> <!-- Display unit name -->
-                                        <td>@item.Remarks</td>
+                                        <td>@baseItemName</td>
+                                        <td>@rawMaterials</td>
                                         <td>
-                                            <a asp-action="EditRawMaterialConsumption" asp-route-id="@item.S_No" class="btn btn-outline-info btn-rounded">
-                                                <i class="fas fa-pen"></i>
+                                            <!-- Edit all ingredients for this base item -->
+                                            <a asp-action="EditRawMaterialConsumption" asp-route-id="@baseItemId"
+                                               class="btn btn-outline-info btn-rounded">
+                                                <i class="fas fa-pen"></i> Edit
                                             </a>
+
+                                            <!-- Delete all ingredients for this base item -->
                                             <a href="javascript:void(0);" class="btn btn-outline-danger btn-rounded"
-                                               onclick="confirmDelete('@item.S_No')">
-                                                <i class="fas fa-trash"></i>
+                                               onclick="confirmDelete('@baseItemId')">
+                                                <i class="fas fa-trash"></i> Delete
                                             </a>
                                         </td>
                                     </tr>
                                 }
                             </tbody>
+
+                            <script>
+                                function confirmDelete(baseItemId) {
+                                    if (confirm("Are you sure you want to delete all ingredients for this item?")) {
+                                        window.location.href = '/ControlPanel/DeleteRawMaterialConsumption/' + baseItemId;
+                                    }
+                                }
+                            </script>
+
+                             
                         </table>
 
                     </div>

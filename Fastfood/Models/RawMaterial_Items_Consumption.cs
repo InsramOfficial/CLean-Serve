@@ -31,6 +31,7 @@ namespace Fastfood.Models
         [ForeignKey("BInv_ItemId")]
         public Item? Item { get; set; }
         public string? Remarks { get; set; }
- 
+        [NotMapped]
+        public bool IsDeleted { get; set; }
     }
 }

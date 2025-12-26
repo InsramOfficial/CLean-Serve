@@ -1,17 +1,21 @@
-﻿@{
+﻿@model Fastfood.ViewModel.RawMaterialConsumptionVM
+
+@{
+    ViewData["Title"] = "Add Raw Material Consumption";
     var permission = TempData["Permission"] as string;
 }
 
 @if (!string.IsNullOrEmpty(permission))
 {
-    <div style="display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0;">
-        <div style="width: 400px; text-align: center; padding: 30px; border: 2px dashed #dc3545; border-radius: 10px; background-color: #fff0f1; color: #842029; box-shadow: 0 0 12px rgba(220, 53, 69, 0.2); font-family: 'Segoe UI', sans-serif;">
-            <div style="font-size: 24px; font-weight: bold; margin-bottom: 10px;">Access Denied</div>
-            <div style="font-size: 16px; margin-bottom: 20px;">
-                You do not have the necessary permissions to access this page.
-            </div>
-            <a asp-action="Index" asp-controller="ControlPanel"
-               style="display: inline-block; padding: 10px 25px; background-color: #dc3545; color: #fff; text-decoration: none; border-radius: 6px; font-weight: bold; transition: background-color 0.3s;">
+    <div class="d-flex justify-content-center align-items-center vh-100">
+        <div class="text-center p-4 border border-danger rounded shadow-sm"
+             style="max-width:400px;background:#fff0f1;color:#842029;">
+            <h4 class="mb-3 font-weight-bold">Access Denied</h4>
+            <p>You do not have the necessary permissions to access this page.</p>
+
+            <a asp-action="Index"
+               asp-controller="ControlPanel"
+               class="btn btn-danger px-4">
                 Return to Home
             </a>
         </div>
@@ -19,102 +23,121 @@
 }
 else
 {
-    @using Fastfood.ViewModel
-@model RawMaterialConsumptionVM
+    <style>
+        body {
+            background: #F4F6FA;
+            font-family: 'Segoe UI', sans-serif;
+        }
 
-    <!DOCTYPE html>
-    <html lang="en">
+        .form-container {
+            max-width: 850px;
+            margin: 40px auto;
+            background: #fff;
+            padding: 40px;
+            border-radius: 10px;
+            box-shadow: 0 0 15px rgba(0,0,0,.08);
+            border-left: 4px solid #3EADFA;
+        }
 
-    <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
-        <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
-        <title>Add Raw Material Consumption</title>
-        <style>
-            body {
-                background: #F4F6FA;
-                font-family: 'Segoe UI', sans-serif;
+        h2 {
+            color: #3EADFA;
+        }
+
+        .btn-custom {
+            background-color: #3EADFA;
+            color: #fff;
+        }
+
+            .btn-custom:hover {
+                background-color: #1F75C1;
             }
+    </style>
 
-            .form-container {
-                max-width: 800px;
-                margin: auto;
-                background-color: #ffffff;
-                padding: 40px;
-                border-radius: 8px;
-                box-shadow: 0 0 15px rgba(0, 0, 0, 0.1);
-                border-left: 4px solid #3EADFA;
-            }
+    <div class="container">
+        <div class="form-container">
+            <form method="post" asp-action="CreateRawMaterialConsumption" asp-controller="ControlPanel">
+                <h2 class="text-center mb-4">Add Raw Material Consumption</h2>
 
-            h2 {
-                color: #3EADFA;
-            }
+                <!-- SINGLE BASE ITEM SELECT -->
+                <div class="form-group">
+                    <label class="font-weight-bold">Base Item (Menu Item) for All</label>
+                    <select name="BaseItemId" class="form-control" required>
+                        <option value="">--- Select Base Item ---</option>
+                        @foreach (var b in Model.BaseItems)
+                        {
+                            <option value="@b.ItemId">@b.ItemName</option>
+                        }
+                    </select>
+                </div>
 
-            .btn-custom {
-                background-color: #3EADFA;
-                color: #fff;
-                border: none;
-            }
+                <!-- RAW MATERIAL TABLE -->
+                <table class="table table-bordered">
+                    <thead>
+                        <tr>
+                            <th>Raw Material</th>
+                            <th>Quantity</th> 
+                            <th>Remarks</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody id="rows">
+                        <tr>
+                            <td>
+                                <select name="Consumptions[0].RMInv_ItemId" class="form-control" required>
+                                    <option value="">-- Select --</option>
+                                    @foreach (var r in Model.Consumeables)
+                                    {
+                                        <option value="@r.CMID">@r.CMName</option>
+                                    }
+                                </select>
+                            </td>
+                            <td><input name="Consumptions[0].RMQTY" class="form-control" required /></td>
+                            
+                            <td><input name="Consumptions[0].Remarks" class="form-control" /></td>
+                            <td><button type="button" class="btn btn-danger remove">X</button></td>
+                        </tr>
+                    </tbody>
+                </table>
 
-                .btn-custom:hover {
-                    background-color: #1F75C1;
-                }
+                <button type="button" class="btn btn-info mb-3" id="addRow">Add Item</button>
 
-            .btn-secondary a {
-                color: white;
-                text-decoration: none;
-            }
-        </style>
-    </head>
-
-    <body>
-        <div class="container">
-            <div class="form-container">
-                <form method="post" asp-action="CreateRawMaterialConsumption" asp-controller="ControlPanel">
-                    <h2 class="text-center mb-4">Add Raw Material Consumption</h2>
-
-                    <div class="form-row">
-                        <!-- Raw Material Dropdown -->
-                        <div class="form-group col-md-6">
-                            <label>Raw Material</label>
-                            <select asp-for="Consumption.RMInv_ItemId" class="form-control"
-                                    asp-items="@(new SelectList(Model.Consumeables, "CMID", "CMName"))">
-                                <option value="">--- Select Raw Material ---</option>
-                            </select>
-                            <span asp-validation-for="Consumption.RMInv_ItemId" class="text-danger"></span>
-                        </div>
-
-                        <div class="form-group col-md-6">
-                            <label>Quantity</label>
-                            <input asp-for="Consumption.RMQTY" class="form-control" placeholder="Enter Quantity" />
-                            <span asp-validation-for="Consumption.RMQTY" class="text-danger"></span>
-                        </div>
-                    </div>
-
-                    <div class="form-row">
-                        <!-- Base Item Dropdown -->
-                        <div class="form-group col-md-6">
-                            <label>Base Item (Menu Item)</label>
-                            <select asp-for="Consumption.BInv_ItemId" class="form-control"
-                                    asp-items="@(new SelectList(Model.BaseItems, "ItemId", "ItemName"))">
-                                <option value="">--- Select Base Item ---</option>
-                            </select>
-                            <span asp-validation-for="Consumption.BInv_ItemId" class="text-danger"></span>
-                        </div>
-
-                        <div class="form-group col-md-6">
-                            <label>Remarks</label>
-                            <input asp-for="Consumption.Remarks" class="form-control" placeholder="Enter Remarks" />
-                        </div>
-                    </div>
-
-                    <div class="d-flex justify-content-between mt-4">
-                        <a asp-action="RawMaterialConsumption" asp-controller="ControlPanel" class="btn btn-secondary">Back</a>
-                        <button type="submit" class="btn btn-custom">Create</button>
-                    </div>
-                </form>
-            </div>
+                <div class="d-flex justify-content-between mt-4">
+                    <a asp-action="RawMaterialConsumption" asp-controller="ControlPanel" class="btn btn-secondary">Back</a>
+                    <button type="submit" class="btn btn-custom">Save All</button>
+                </div>
+            </form>
         </div>
-    </body>
-    </html>
+    </div>
+
+    <script>
+        let index = 1;
+        const rows = document.getElementById("rows");
+
+        document.getElementById("addRow").addEventListener("click", function () {
+            const row = `
+            <tr>
+                <td>
+                    <select name="Consumptions[${index}].RMInv_ItemId" class="form-control" required>
+                        <option value="">-- Select --</option>
+                        @foreach (var r in Model.Consumeables)
+                        {
+                                    <option value="@r.CMID">@r.CMName</option>
+                        }
+                    </select>
+                </td>
+                <td><input name="Consumptions[${index}].RMQTY" class="form-control" required /></td>
+                <td><input name="Consumptions[${index}].Remarks" class="form-control" /></td>
+                <td><input name="Consumptions[${index}].Unit" class="form-control" /></td>
+                <td><button type="button" class="btn btn-danger remove">X</button></td>
+            </tr>`;
+            rows.insertAdjacentHTML("beforeend", row);
+            index++;
+        });
+
+        document.addEventListener("click", function (e) {
+            if (e.target.classList.contains("remove")) {
+                e.target.closest("tr").remove();
+            }
+        });
+    </script>
 }

@@ -320,7 +320,7 @@ else
                                             </div>
                                             <div class="form-check form-check-inline">
                                                 <input asp-for="PaymentMethod" class="form-check-input" type="radio" name="paymentMethod" onclick="handlePaymentMethodChange()" id="creditCardRadio" value="CreditCard">
-                                                <label class="form-check-label" for="creditCard">Credit Card</label>
+                                                <label class="form-check-label" for="creditCard">Card Payment</label>
                                             </div>
                                         </div>
                                         <div class="modal fade" id="creditCardModal" tabindex="-1" role="dialog"
@@ -339,7 +339,7 @@ else
                                                                 <td>
                                                                     <div class="form-group">
                                                                         <label for="cardholderName">BIN Number</label>
-                                                                        <input asp-for="BankSattlement.BIN" type="text" class="form-control" id="CardBinNumber">
+                                                                        <input asp-for="BankSattlement.BIN" maxlength="16" min="6" type="text" class="form-control" id="CardBinNumber">
                                                                         <button type="button" id="CardDetailCheck" class="btn btn-success mt-2">Check</button>
                                                                     </div>
                                                                 </td>
@@ -406,7 +406,7 @@ else
                                         </div>
                                     </div>
                                     <div class="col-md-7">
-                                        <h4>Delivery Method</h4>
+                                        <h4>Order Type</h4>
                                         <div class="form-group">
                                             <div class="form-check form-check-inline">
                                                 <input asp-for="DeliveryMethod" class="form-check-input" type="radio" name="deliveryMethod" id="dineIn"
@@ -416,7 +416,7 @@ else
                                             <div class="form-check form-check-inline">
                                                 <input asp-for="DeliveryMethod" class="form-check-input" type="radio" name="deliveryMethod" id="packing"
                                                        value="Packing">
-                                                <label class="form-check-label" for="packing">Packing</label>
+                                                <label class="form-check-label" for="packing">TakeWay</label>
                                             </div>
                                             <div class="form-check form-check-inline">
                                                 <input asp-for="DeliveryMethod" class="form-check-input" type="radio" name="deliveryMethod" id="delivery"
@@ -434,7 +434,7 @@ else
                                                 <th>Item Name</th>
                                                 <th>Unit Price</th>
                                                 <th>Quantity</th>
-                                                <th>Discount</th>
+                                                @* <th>Discount</th> *@
                                                 <th>Net Total</th>
                                                 <th>Action</th>
                                             </tr>
