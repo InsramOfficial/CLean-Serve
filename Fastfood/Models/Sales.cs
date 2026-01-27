@@ -21,6 +21,7 @@ namespace Fastfood.Models
         public int? TokenNumber { get; set; }
         public DateTime? TokenDate { get; set; }
         public string? Serving { get; set; }
+        public string? OrderOrInvoice { get; set; }
         [ValidateNever]
         [NotMapped]
         public Suppliers? Supplier { get; set; }

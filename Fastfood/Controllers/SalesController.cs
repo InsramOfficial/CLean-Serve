@@ -430,7 +430,7 @@ namespace Fastfood.Controllers
                     var banksattlement = db.bankSattlements;
 
                     var specificbankdetail = banksattlement.Where(x => x.BIN == Bin).FirstOrDefault();
-
+                   
                     return Json(specificbankdetail);
                 }
                 else
@@ -447,7 +447,7 @@ namespace Fastfood.Controllers
 
         }
         [HttpPost]
-        public IActionResult CreateCustomer(string CustomerName)
+        public IActionResult CreateCustomer(string CustomerName,string Address,string Email ,string MobileNo ,string PhoneNo)
         {
             TempData["UserName"] = HttpContext.Session.GetString("UserName");
 
@@ -466,8 +466,14 @@ namespace Fastfood.Controllers
                     Client newcustomer = new();
                     newcustomer.Clientid = lastRecordId + 1;
                     newcustomer.Name = CustomerName;
+                    newcustomer.Address = Address;
+                    newcustomer.Email = Email;
+                    newcustomer.PhoneNo = PhoneNo;
+                    newcustomer.MobileNo = MobileNo;
                     db.clients.Add(newcustomer);
                     db.SaveChanges();
+                    TempData["ToastType"] = "success";
+                    TempData["ToastMessage"] = "New Customer has been added successfully.";
                     return RedirectToAction(nameof(SalesIndex));
                 }
                 else

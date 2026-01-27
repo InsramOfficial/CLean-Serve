@@ -166,5 +166,32 @@ namespace Fastfood.Controllers
         }
 
 
+        public async Task<IActionResult> PrintCustomerHistory(int customerId)
+        {
+            QuestPDF.Settings.License = LicenseType.Community;
+
+            var customer = await db.clients.FirstOrDefaultAsync(c => c.Clientid == customerId);
+            if (customer == null)
+                return NotFound("Customer not found");
+
+            var sales = await db.sales
+                .Where(s => s.ClientId == customerId)
+                .OrderBy(s => s.SaleDate)
+                .ToListAsync();
+
+            var logoPath = Path.Combine(env.WebRootPath, "assets", "img", "logo.png");
+            if (!System.IO.File.Exists(logoPath))
+                logoPath = "";
+
+            var document = new CustomerSalesHistoryReport(customer, sales, logoPath);
+            var pdf = document.GeneratePdf();
+
+            return File(
+                pdf,
+                "application/pdf",
+                $"CustomerHistory_{customer.Name}_{DateTime.Now:yyyyMMdd}.pdf"
+            );
+        }
+
     }
 }

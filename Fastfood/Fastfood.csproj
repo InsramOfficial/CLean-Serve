@@ -7,6 +7,13 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Content Include="Controllers\ControlPanelController.cs" />
+    <Content Include="Controllers\HomeController.cs" />
+    <Content Include="Controllers\ReportsController.cs" />
+    <Content Include="Controllers\SalesController.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
     <PackageReference Include="AspNetCore.Reporting" Version="2.1.0" />
     <PackageReference Include="MessagePack" Version="2.5.198" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="6.0.26" />

@@ -349,6 +349,15 @@
                     </li>
 
                     <li>
+                        <a class="nav-link @(currentAction == "ReportsDashboard" ? "text-primary" : "text-dark")"
+                           asp-controller="ControlPanel" asp-action="CustomerHistory">
+                            <i class="bi bi-person-lines-fill fs-6"></i>
+                            <span class="ms-1">Customer History</span>
+                        </a>
+                    </li>
+
+
+                    <li>
                         <a class="nav-link @(currentAction == "AllPurchases" ? "text-primary" : "text-dark")"
                            asp-controller="ControlPanel" asp-action="AllPurchases">
                             <i class="bi bi-bag-check-fill fs-6"></i>

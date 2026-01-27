@@ -2554,5 +2554,18 @@ namespace Fastfood.Controllers
             return View();
         }
         #endregion
+
+        #region Customer History  Page
+
+        public async Task<IActionResult> CustomerHistory()
+        {
+            // Load all customers
+            var customers = await db.clients
+                .OrderBy(c => c.Name)
+                .ToListAsync();
+
+            return View(customers); // pass to Razor view
+        }
+        #endregion
     }
 }
