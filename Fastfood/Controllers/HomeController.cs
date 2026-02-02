@@ -383,17 +383,23 @@ namespace Fastfood.Controllers
 
                 int clientId = int.TryParse(clientIdStr, out int parsedClientId) ? parsedClientId : 0;
 
+                // Use 24-hour format (HH) and minutes (mm)
+                string timeToken = DateTime.Now.ToString("HHmm");
+
                 var sale = new Sales
                 {
                     SaleDate = DateTime.Now,
                     LastModified = DateTime.Now,
-                    ClientId = clientId == 0 ? null : clientId, // allow guest checkout
+                    ClientId = clientId == 0 ? null : (int?)clientId,
                     Status = "Pending",
                     Payment = cart.Sum(x => (x.RecentUnitPrice - (x.Discount ?? 0)) * x.Quantity),
                     Cash_Received = 0,
                     Paid_Back = 0,
-                    Modifier = HttpContext.Session.GetString("UserName") ?? "Anonymous",
-                    TokenNumber = new Random().Next(1000, 9999),
+                    Modifier = HttpContext.Session.GetString("UserName") ?? "Web-System",
+
+                    // Convert "1425" string to integer 1425
+                    TokenNumber = Convert.ToInt32(timeToken),
+
                     Serving = "COD"
                 };
 

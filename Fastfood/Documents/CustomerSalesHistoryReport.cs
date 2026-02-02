@@ -77,7 +77,7 @@
                         IContainer HeaderStyle(IContainer c) => c.BorderBottom(1).BorderColor(Colors.Grey.Medium).PaddingVertical(5);
 
                         header.Cell().Element(HeaderStyle).Text("Date").SemiBold();
-                        header.Cell().Element(HeaderStyle).Text("Invoice / Order").SemiBold();
+                        header.Cell().Element(HeaderStyle).Text("Serving").SemiBold();
                         header.Cell().Element(HeaderStyle).AlignRight().Text("Payment").SemiBold();
                         header.Cell().Element(HeaderStyle).AlignRight().Text("Total").SemiBold();
                     });
@@ -86,7 +86,7 @@
                     foreach (var sale in _sales)
                     {
                         table.Cell().BorderBottom(0.5f).BorderColor(Colors.Grey.Lighten2).PaddingVertical(5).Text(sale.SaleDate?.ToString("dd/MM/yyyy"));
-                        table.Cell().BorderBottom(0.5f).BorderColor(Colors.Grey.Lighten2).PaddingVertical(5).Text(sale.OrderOrInvoice ?? "N/A");
+                        table.Cell().BorderBottom(0.5f).BorderColor(Colors.Grey.Lighten2).PaddingVertical(5).Text(sale.Serving ?? "N/A");
                         table.Cell().BorderBottom(0.5f).BorderColor(Colors.Grey.Lighten2).PaddingVertical(5).AlignRight().Text(sale.Payment?.ToString("0.00") ?? "0.00");
                         table.Cell().BorderBottom(0.5f).BorderColor(Colors.Grey.Lighten2).PaddingVertical(5).AlignRight().Text(sale.Cash_Received?.ToString("0.00") ?? "0.00");
                     }

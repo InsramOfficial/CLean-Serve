@@ -1,267 +1,250 @@
-﻿
+﻿@using Fastfood.Models;
+@model IEnumerable<Sales>
+
 @{
-	var permission = TempData["Permission"] as string;
+    var permission = TempData["Permission"] as string;
+
+    // Split the data into two categories for the separate tables
+    var pendingInvoices = Model.Where(x => x.Status?.ToLower() == "pending").ToList();
+    var completedInvoices = Model.Where(x => x.Status?.ToLower() != "pending").ToList();
 }
 
-@if(!string.IsNullOrEmpty(permission))
+@if (!string.IsNullOrEmpty(permission))
 {
-	<div style="display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0;">
-		<div style="width: 300px; text-align: center; padding: 20px; border: 1px solid #dc3545; border-radius: 5px; background-color: #f8d7da; color: #721c24;">
-			<strong>You do not have permission to access this page.</strong>
-			<br>
-			<button style="margin-top: 10px; padding: 5px 10px; background-color: #dc3545; color: #fff; border: none; border-radius: 3px; cursor: pointer;">
-				<a asp-action="SalesIndex" asp-controller="Sales" style="color:white;">OK</a>
-			</button>
-		</div>
-	</div>
+    <div style="display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0;">
+        <div style="width: 300px; text-align: center; padding: 20px; border: 1px solid #dc3545; border-radius: 5px; background-color: #f8d7da; color: #721c24;">
+            <strong>You do not have permission to access this page.</strong>
+            <br>
+            <button style="margin-top: 10px; padding: 5px 10px; background-color: #dc3545; color: #fff; border: none; border-radius: 3px; cursor: pointer;">
+                <a asp-action="SalesIndex" asp-controller="Sales" style="color:white; text-decoration:none;">OK</a>
+            </button>
+        </div>
+    </div>
 }
 else
 {
-	@using Fastfood.Models;
-	@model IEnumerable<Sales>
+    <!doctype html>
+    <html lang="en">
+    <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+        <meta http-equiv="X-UA-Compatible" content="IE=edge">
+        <title>Invoice Management</title>
+        <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css" rel="stylesheet">
+        <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet">
+        <link href="https://cdn.datatables.net/1.10.22/css/jquery.dataTables.min.css" rel="stylesheet">
+        <style>
+            .table-container {
+                max-height: 340px;
+                overflow-y: auto;
+            }
 
-	<!doctype html>
-	<html lang="en">
+            #body > .content {
+                position: relative;
+                padding: .5rem;
+            }
 
-	<head>
-		<meta charset="utf-8">
-		<meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
-		<meta http-equiv="X-UA-Compatible" content="IE=edge">
-		<title>Invoice History</title>
-		<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/fontawesome.min.css" rel="stylesheet">
-		<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/solid.min.css" rel="stylesheet">
-		<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/brands.min.css" rel="stylesheet">
-		<link href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet">
-		<link href="https://cdn.datatables.net/1.10.22/css/jquery.dataTables.min.css" rel="stylesheet">
-		<link href="assets/css/master.css" rel="stylesheet">
-		<style>
-			/* Add custom styles here */
-			.table-container {
-				max-height: 340px;
-				/* Adjust the max-height based on your requirement */
-				overflow-y: auto;
-			}
+            .page-title h3 {
+                margin: 1rem 0;
+                font-size: 1.5rem;
+            }
 
-			#dataTables-example thead th {
-				position: sticky;
-				top: 0;
-				background-color: #fff;
-				/* Set the background color you desire */
-				z-index: 1;
-			}
+            .box {
+                position: relative;
+                border-radius: 3px;
+                background: #ffffff;
+                border-top: 3px solid #d2d6de;
+                margin-bottom: 20px;
+                width: 100%;
+                box-shadow: 0 1px 1px rgba(0, 0, 0, 0.1);
+            }
 
+            .box-primary {
+                border-top-color: #22a1f9;
+            }
 
+            .box-warning {
+                border-top-color: #ffc107;
+            }
 
-			/*------------------------------------------------------------------
-											[4. Content / #content]
-											*/
-			#body > .content {
-				position: relative;
-				padding: .5rem;
-			}
+            .btn-rounded {
+                border-radius: 10em;
+                padding: 6px 8px;
+                font-size: small;
+                background: #eaeaea;
+                border: none;
+            }
 
-			#body .content .page-title h3 {
-				margin: 1rem 0;
-			}
+                .btn-rounded:hover {
+                    background: #dcdcdc;
+                }
 
+            .fixed-width-search-container {
+                width: 250px;
+            }
 
-			.page-title {
-				margin: 0;
-				font-size: 1.5rem;
-				line-height: 1.5555556;
-			}
+            thead th {
+                position: sticky;
+                top: 0;
+                background-color: #fff;
+                z-index: 1;
+            }
 
-			.box {
-				position: relative;
-				border-radius: 3px;
-				background: #ffffff;
-				border-top: 3px solid #d2d6de;
-				margin-bottom: 20px;
-				width: 100%;
-				box-shadow: 0 1px 1px rgba(0, 0, 0, 0.1);
-			}
+            .badge-pending {
+                background-color: #fff3cd;
+                color: #856404;
+                border: 1px solid #ffeeba;
+            }
+        </style>
+    </head>
+    <body>
+        <div class="wrapper">
+            <div id="body" class="active">
+                <div class="content">
+                    <div class="container">
 
+                        <div class="page-title mt-4">
+                            <h3 class="text-primary"><i class="fas fa-history"></i> Invoice History</h3>
+                        </div>
+                        <div class="box box-primary">
+                            <div class="box-body p-3">
+                                <div class="input-group mb-3 fixed-width-search-container">
+                                    <input type="text" class="form-control" id="searchInput" placeholder="Search Invoice ID..." oninput="searchCategory()">
+                                </div>
 
-			.box-primary {
-				border-top-color: #22a1f9;
-			}
+                                <div class="table-container">
+                                    <table class="table table-hover" id="dataTables-example">
+                                        <thead>
+                                            <tr>
+                                                <th>Invoice #</th>
+                                                <th>Sale Date</th>
+                                                <th>Payment</th>
+                                                <th>Status</th>
+                                                <th>Modifier</th>
+                                                <th>Token</th>
+                                                <th>Actions</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            @foreach (var item in completedInvoices)
+                                            {
+                                                <tr>
+                                                    <td>@item.SaleId</td>
+                                                    <td>@item.SaleDate?.ToString("g")</td>
+                                                    <td>@item.Payment</td>
+                                                    <td><span class="badge badge-light border px-2">@item.Status</span></td>
+                                                    <td>@item.Modifier</td>
+                                                    <td>@item.TokenNumber</td>
+                                                    <td>
+                                                        <a asp-action="UpdateBill" asp-controller="Sales" asp-route-Id="@item.SaleId" class="btn btn-outline-info btn-rounded">
+                                                            <i class="fas fa-pen"></i>
+                                                        </a>
+                                                        <a asp-action="PrintBill" asp-controller="Reports" asp-route-Id="@item.SaleId" class="btn btn-outline-primary btn-rounded">
+                                                            <i class="fas fa-print"></i>
+                                                        </a>
+                                                        <button type="button" class="btn btn-outline-danger btn-rounded" data-toggle="modal" data-target="#deleteModal-@item.SaleId">
+                                                            <i class="fas fa-trash"></i>
+                                                        </button>
+                                                    </td>
+                                                </tr>
 
-			/*------------------------------------------------------------------
-											[7. Dashboard Cards / .card]
-											*/
+                                                <div class="modal fade" id="deleteModal-@item.SaleId" tabindex="-1" role="dialog" aria-hidden="true">
+                                                    <div class="modal-dialog modal-dialog-centered" role="document">
+                                                        <div class="modal-content">
+                                                            <div class="modal-header bg-danger text-white">
+                                                                <h5 class="modal-title"><i class="fas fa-exclamation-triangle"></i> Confirm Delete</h5>
+                                                                <button type="button" class="close text-white" data-dismiss="modal">&times;</button>
+                                                            </div>
+                                                            <div class="modal-body">
+                                                                Are you sure you want to delete invoice <strong>#@item.SaleId</strong>?
+                                                            </div>
+                                                            <div class="modal-footer">
+                                                                <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+                                                                <form asp-action="DeleteSale" asp-controller="Sales" method="post" style="display:inline;">
+                                                                    <input type="hidden" name="id" value="@item.SaleId" />
+                                                                    <button type="submit" class="btn btn-danger">Yes, Delete</button>
+                                                                </form>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            }
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="page-title">
+                            <h3 class="text-warning"><i class="fas fa-exclamation-circle"></i> Pending Invoices</h3>
+                        </div>
+                        <div class="box box-warning">
+                            <div class="box-body p-3">
+                                <div class="table-container">
+                                    <table class="table table-hover">
+                                        <thead>
+                                            <tr>
+                                                <th>Invoice #</th>
+                                                <th>Date</th>
+                                                <th>Payment</th>
+                                                <th>Status</th>
+                                                <th>Token</th>
+                                                <th>Actions</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            @foreach (var item in pendingInvoices)
+                                            {
+                                                <tr>
+                                                    <td>@item.SaleId</td>
+                                                    <td>@item.SaleDate?.ToString("g")</td>
+                                                    <td>@item.Payment</td>
+                                                    <td><span class="badge badge-pending px-2">@item.Status</span></td>
+                                                    <td>@item.TokenNumber</td>
+                                                    <td>
+                                                        <a asp-action="UpdateBill" asp-controller="Sales" asp-route-Id="@item.SaleId" class="btn btn-outline-info btn-rounded">
+                                                            <i class="fas fa-pen"></i>
+                                                        </a>
+                                                    </td>
+                                                </tr>
+                                            }
+                                            @if (!pendingInvoices.Any())
+                                            {
+                                                <tr><td colspan="6" class="text-center text-muted">No pending invoices found.</td></tr>
+                                            }
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
 
+                      
+                    </div>
+                </div>
+            </div>
+        </div>
 
-			/*------------------------------------------------------------------
-											[8. Miscellaneous ]
-											*/
+        <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
+        <script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.1/dist/umd/popper.min.js"></script>
+        <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+        <script src="https://cdn.datatables.net/1.10.22/js/jquery.dataTables.min.js"></script>
 
+        <script>
+            $(document).ready(function () {
+                $('#dataTables-example').DataTable({
+                    "paging": false,
+                    "info": false,
+                    "searching": false // We use our custom search function
+                });
+            });
 
-			.nav-pills {
-				padding: 15px;
-				background-color: #E0E0E0;
-				-webkit-box-shadow: 0 3px 10px 0 rgba(0, 0, 0, 0.05);
-				box-shadow: 0 3px 10px 0 rgba(0, 0, 0, 0.05);
-			}
-
-			.btn-rounded {
-				border-radius: 10em;
-				padding: 6px 8px;
-				font-size: small;
-				text-transform: none;
-				text-shadow: none !important;
-				background: #eaeaea;
-				border-color: transparent;
-				border: none;
-			}
-
-				.btn-rounded:hover {
-					border-color: transparent;
-					border: none;
-				}
-
-			.fixed-width-search-container {
-				width: 250px; /* Set the fixed width you desire */
-			}
-		</style>
-	</head>
-
-	<body>
-		<div class="wrapper">
-			<!-- sidebar navigation component -->
-			<!-- end of sidebar component -->
-			<div id="body" class="active">
-				<!-- navbar navigation component -->
-				<!-- end of navbar navigation -->
-				<div class="content">
-					<div class="container">
-						<div class="page-title">
-							<h3>
-								Invoice History
-							</h3>
-						</div>
-
-						<div class="box box-primary">
-							<div class="box-body">
-								<!-- Add the search input box here with Bootstrap classes -->
-								<div class="input-group mb-3 fixed-width-search-container">
-									<input type="text" class="form-control" id="searchInput" placeholder="Search for Invoice..." oninput="searchCategory()">
-								</div>
-
-								<!-- Add the scrollable table container -->
-								<div class="table-container">
-									<table class="table table-hover" id="dataTables-example">
-										<thead>
-											<tr>
-												<th>Invoice Number</th>
-												<th>Sale Date</th>
-												<th>Payment</th>
-												<th>Status</th>
-												<th>Modifier</th>
-												<th>TokenNumber</th>
-												<th>Actions</th>
-											</tr>
-										</thead>
-										<tbody>
-											@foreach (var item in Model)
-											{
-												<tr>
-													<td>@item.SaleId</td>
-													<td>@item.SaleDate</td>
-													<td>@item.Payment</td>
-													<td>@item.Status</td>
-													<td>@item.Modifier</td>
-													<td>@item.TokenNumber</td>
-													<td>
-
-														<a asp-action="UpdateBill" asp-controller="Sales" asp-route-Id="@item.SaleId" class="btn btn-outline-info btn-rounded">
-															<i class="fas fa-pen"></i>
-														</a>
-														<a asp-action="PrintBill" asp-controller="Reports" asp-route-Id="@item.SaleId" class="btn btn-outline-primary btn-rounded">
-															<i class="fas fa-print"></i> <!-- Use the print icon from Font Awesome -->
-														</a>
-														<!-- Delete Button (opens modal) -->
-														<button type="button"
-																class="btn btn-outline-danger btn-rounded"
-																data-toggle="modal"
-																data-target="#deleteModal-@item.SaleId">
-															<i class="fas fa-trash"></i>
-														</button>
-
-
-													</td>
-												</tr>
-												<div class="modal fade" id="deleteModal-@item.SaleId" tabindex="-1" role="dialog" aria-labelledby="deleteModalLabel-@item.SaleId" aria-hidden="true">
-													<div class="modal-dialog modal-dialog-centered" role="document">
-														<div class="modal-content">
-
-															<div class="modal-header bg-danger text-white">
-																<h5 class="modal-title" id="deleteModalLabel-@item.SaleId">
-																	<i class="fas fa-exclamation-triangle"></i> Confirm Delete
-																</h5>
-																<button type="button" class="close text-white" data-dismiss="modal" aria-label="Close">
-																	<span aria-hidden="true">&times;</span>
-																</button>
-															</div>
-
-															<div class="modal-body">
-																Are you sure you want to delete this sale <strong>#@item.SaleId</strong>?
-																This action cannot be undone.
-															</div>
-
-															<div class="modal-footer">
-																<button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
-
-																<form asp-action="DeleteSale" asp-controller="Sales" method="post" style="display:inline;">
-																	<input type="hidden" name="id" value="@item.SaleId" />
-																	<button type="submit" class="btn btn-danger">Yes, Delete</button>
-																</form>
-															</div>
-
-														</div>
-													</div>
-												</div>
-											}
-										</tbody>
-									</table>
-								</div>
-							</div>
-						</div>
-					</div>
-				</div>
-			</div>
-		</div><!-- Delete Confirmation Modal -->
-		
-
-
-		<!-- Bootstrap scripts -->
-		<script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
-		<script src="https://cdn.jsdelivr.net/npm/popperjs/core@2.11.6/dist/umd/popper.min.js"></script>
-		<script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
-
-		<!-- DataTables script for table functionality -->
-		<script type="text/javascript" charset="utf8"
-				src="https://cdn.datatables.net/1.11.7/js/jquery.dataTables.js"></script>
-		<script>
-			// Initialize DataTable
-			$(document).ready(function () {
-				$('#dataTables-example').DataTable();
-			});
-
-			function searchCategory() {
-				// Get input value
-				var input = $('#searchInput').val().toLowerCase();
-
-				// Loop through each row in the table
-				$('#dataTables-example tbody tr').each(function () {
-					// Check if the input value is empty or matches any text in the first column (index 0)
-					var rowData = $(this).find('td:eq(0)').text().toLowerCase();
-					var isMatch = input === '' || rowData.indexOf(input) !== -1;
-
-					// Show or hide the row based on the match condition
-					$(this).toggle(isMatch);
-				});
-			}
-		</script>
-	</body>
-	</html>
+            function searchCategory() {
+                var input = $('#searchInput').val().toLowerCase();
+                $('#dataTables-example tbody tr').each(function () {
+                    var rowData = $(this).find('td:eq(0)').text().toLowerCase();
+                    $(this).toggle(rowData.indexOf(input) !== -1);
+                });
+            }
+        </script>
+    </body>
+    </html>
 }
